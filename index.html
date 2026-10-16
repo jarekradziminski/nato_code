@@ -415,6 +415,18 @@ function loadVoices() {
 if (tts) { loadVoices(); tts.addEventListener('voiceschanged', loadVoices); }
 $('dVoice').addEventListener('change', e => { settings.dVoice = e.target.value; save(); });
 
+// iOS (Safari and Chrome, both WebKit) only allows speech that starts inside a tap handler.
+// Speaking a silent utterance synchronously on the first tap unlocks it for the rest of the page.
+let speechUnlocked = false;
+function unlockSpeech() {
+  if (!tts || speechUnlocked) return;
+  speechUnlocked = true;
+  const u = new SpeechSynthesisUtterance(' ');
+  u.volume = 0;
+  tts.speak(u);
+  if (!voices.length) loadVoices(); // iOS may never fire voiceschanged
+}
+
 let currentUtterance = null; // keep a reference so Chrome doesn't GC it mid-speech
 function speak(text) {
   return new Promise(resolve => {
@@ -423,7 +435,9 @@ function speak(text) {
     const v = voices.find(v => v.voiceURI === settings.dVoice);
     if (v) { u.voice = v; u.lang = v.lang; } else { u.lang = 'en-US'; }
     u.rate = settings.dRate;
-    u.onend = u.onerror = () => resolve();
+    // iOS sometimes never fires onend; don't let that stall the sequence.
+    const fallback = setTimeout(resolve, 1500 + 400 * text.length / settings.dRate);
+    u.onend = u.onerror = () => { clearTimeout(fallback); resolve(); };
     currentUtterance = u;
     tts.speak(u);
   });
@@ -467,6 +481,7 @@ function stopSpeakTimer() {
   $('sTimerBar').style.width = '0';
 }
 async function hearWord() {
+  unlockSpeech();
   revealWord();
   tts?.cancel();
   for (const c of sCurrent) { await speak(NATO[c].say); await sleep(250); }
@@ -493,6 +508,7 @@ async function dSleep(ms, runId) {
 }
 
 async function runDictation(set) {
+  unlockSpeech();
   const runId = ++dRunId;
   dSet = set; dRunning = true; dPaused = false;
   updateDictButtons();
@@ -542,7 +558,6 @@ function stopDictation() {
 function togglePause() {
   if (!dRunning) return;
   dPaused = !dPaused;
-  if (dPaused) tts?.pause(); else tts?.resume();
   $('dPauseBtn').textContent = dPaused ? '▶ Resume' : '⏸ Pause';
   if (dPaused) { dStatusBeforePause = $('dStatus').textContent; $('dStatus').textContent = 'Paused'; }
   else $('dStatus').textContent = dStatusBeforePause;
@@ -561,6 +576,7 @@ function showAnswers() {
 $('dAnswers').addEventListener('click', async e => {
   const i = e.target.dataset.i;
   if (i === undefined || dRunning) return;
+  unlockSpeech();
   tts?.cancel();
   for (const c of dSet[i]) { await speak(NATO[c].say); await sleep(settings.dGap * 1000); }
 });
