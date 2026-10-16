@@ -1,0 +1,530 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>NATO Alphabet Trainer</title>
+<style>
+  :root {
+    --bg: #0f172a; --panel: #1e293b; --panel2: #273449; --text: #e2e8f0;
+    --muted: #94a3b8; --accent: #38bdf8; --accent2: #22c55e; --danger: #f87171;
+    --radius: 12px;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+    background: var(--bg); color: var(--text); min-height: 100vh;
+  }
+  header { padding: 20px; text-align: center; }
+  header h1 { margin: 0 0 14px; font-size: 1.5rem; letter-spacing: .02em; }
+  .tabs { display: inline-flex; background: var(--panel); border-radius: 999px; padding: 4px; }
+  .tabs button {
+    border: 0; background: transparent; color: var(--muted); padding: 10px 20px;
+    border-radius: 999px; font-size: 1rem; cursor: pointer;
+  }
+  .tabs button.active { background: var(--accent); color: #0b1220; font-weight: 600; }
+  main { max-width: 900px; margin: 0 auto; padding: 0 16px 40px; }
+  section.mode { display: none; }
+  section.mode.active { display: block; }
+  .panel { background: var(--panel); border-radius: var(--radius); padding: 18px; margin-bottom: 16px; }
+  .settings { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 14px 22px; }
+  .field label { display: flex; justify-content: space-between; font-size: .9rem; color: var(--muted); margin-bottom: 6px; }
+  .field label output { color: var(--text); font-variant-numeric: tabular-nums; }
+  input[type=range] { width: 100%; accent-color: var(--accent); }
+  select { width: 100%; padding: 8px; border-radius: 8px; background: var(--panel2); color: var(--text); border: 1px solid #334155; }
+  .seg { display: flex; gap: 6px; }
+  .seg button {
+    flex: 1; padding: 8px; border-radius: 8px; border: 1px solid #334155;
+    background: var(--panel2); color: var(--muted); cursor: pointer;
+  }
+  .seg button.active { border-color: var(--accent); color: var(--text); background: #12384d; }
+  .check { display: flex; align-items: center; gap: 8px; font-size: .95rem; cursor: pointer; }
+  .check input { width: 18px; height: 18px; accent-color: var(--accent); }
+  .actions { display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; margin-top: 16px; }
+  .btn {
+    border: 0; border-radius: 10px; padding: 12px 22px; font-size: 1rem; cursor: pointer;
+    background: var(--panel2); color: var(--text);
+  }
+  .btn.primary { background: var(--accent); color: #0b1220; font-weight: 600; }
+  .btn.go { background: var(--accent2); color: #06210f; font-weight: 600; }
+  .btn.stop { background: var(--danger); color: #2a0606; font-weight: 600; }
+  .btn:disabled { opacity: .4; cursor: not-allowed; }
+  kbd { background: var(--panel2); border: 1px solid #334155; border-radius: 4px; padding: 1px 6px; font-size: .8rem; }
+  .hint { text-align: center; color: var(--muted); font-size: .85rem; margin-top: 10px; }
+
+  /* Speak mode */
+  .word {
+    font-size: clamp(2.5rem, 10vw, 5rem); font-weight: 700; letter-spacing: .15em;
+    text-align: center; padding: 30px 0 10px; font-family: ui-monospace, Menlo, monospace;
+    word-break: break-all;
+  }
+  .reveal { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; min-height: 52px; }
+  .chip { background: var(--panel2); border-radius: 8px; padding: 8px 12px; font-size: 1.05rem; }
+  .chip b { color: var(--accent); }
+  .timerbar { height: 4px; background: var(--panel2); border-radius: 2px; overflow: hidden; margin-top: 14px; }
+  .timerbar div { height: 100%; width: 0; background: var(--accent); }
+  .counter { text-align: center; color: var(--muted); font-size: .9rem; }
+
+  /* Dictation mode */
+  .status { text-align: center; font-size: 1.2rem; min-height: 1.6em; margin: 6px 0; }
+  .progress { text-align: center; color: var(--muted); font-variant-numeric: tabular-nums; }
+  .answers { display: grid; gap: 10px; }
+  .answer { background: var(--panel2); border-radius: 10px; padding: 10px 14px; }
+  .answer .top { display: flex; gap: 12px; align-items: baseline; }
+  .answer .num { color: var(--muted); width: 2.2em; }
+  .answer .str { font-family: ui-monospace, Menlo, monospace; font-size: 1.4rem; font-weight: 700; letter-spacing: .12em; }
+  .answer .nato { color: var(--muted); font-size: .9rem; margin-left: 3.2em; }
+  .answer .replay { margin-left: auto; padding: 4px 10px; font-size: .85rem; }
+  .warn { background: #3b2a0b; color: #fcd34d; padding: 10px 14px; border-radius: 10px; margin-bottom: 16px; display: none; }
+
+  /* Reference */
+  details summary { cursor: pointer; color: var(--muted); }
+  .ref { display: grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: 6px; margin-top: 12px; }
+  .ref div { background: var(--panel2); padding: 6px 10px; border-radius: 6px; font-size: .9rem; }
+  .ref b { color: var(--accent); display: inline-block; width: 1.3em; }
+</style>
+</head>
+<body>
+<header>
+  <h1>NATO Alphabet Trainer</h1>
+  <div class="tabs" role="tablist">
+    <button class="active" data-mode="speak">🗣️ Speak</button>
+    <button data-mode="dictate">🎧 Dictation</button>
+  </div>
+</header>
+
+<main>
+  <div class="warn" id="ttsWarn">Your browser doesn't support speech synthesis. Dictation mode needs a recent version of Chrome, Edge, Safari or Firefox.</div>
+
+  <!-- ============ SPEAK MODE ============ -->
+  <section class="mode active" id="mode-speak">
+    <div class="panel settings">
+      <div class="field">
+        <label>Source</label>
+        <div class="seg" data-setting="sSource">
+          <button data-value="random">Random letters</button>
+          <button data-value="words">Real words</button>
+        </div>
+      </div>
+      <div class="field">
+        <label>Length <output id="sLenOut"></output></label>
+        <input type="range" id="sLen" min="2" max="12" step="1">
+      </div>
+      <div class="field">
+        <label>Auto-reveal after <output id="sTimerOut"></output></label>
+        <input type="range" id="sTimer" min="0" max="20" step="1">
+      </div>
+      <div class="field" style="display:flex;flex-direction:column;justify-content:flex-end;gap:8px">
+        <label class="check"><input type="checkbox" id="sDigits"> Include digits 0–9</label>
+      </div>
+    </div>
+
+    <div class="panel">
+      <div class="counter" id="sCounter"></div>
+      <div class="word" id="sWord">—</div>
+      <div class="reveal" id="sReveal"></div>
+      <div class="timerbar"><div id="sTimerBar"></div></div>
+      <div class="actions">
+        <button class="btn primary" id="sRevealBtn">Reveal</button>
+        <button class="btn" id="sHearBtn">🔊 Hear it</button>
+        <button class="btn go" id="sNextBtn">Next →</button>
+      </div>
+      <div class="hint"><kbd>Space</kbd> reveal · <kbd>Enter</kbd> / <kbd>→</kbd> next · <kbd>H</kbd> hear</div>
+    </div>
+  </section>
+
+  <!-- ============ DICTATION MODE ============ -->
+  <section class="mode" id="mode-dictate">
+    <div class="panel settings">
+      <div class="field">
+        <label>Source</label>
+        <div class="seg" data-setting="dSource">
+          <button data-value="random">Random letters</button>
+          <button data-value="words">Real words</button>
+        </div>
+      </div>
+      <div class="field">
+        <label>String length <output id="dLenOut"></output></label>
+        <input type="range" id="dLen" min="2" max="12" step="1">
+      </div>
+      <div class="field">
+        <label>Number of strings <output id="dCountOut"></output></label>
+        <input type="range" id="dCount" min="1" max="20" step="1">
+      </div>
+      <div class="field">
+        <label>Gap between letters <output id="dGapOut"></output></label>
+        <input type="range" id="dGap" min="0.2" max="6" step="0.1">
+      </div>
+      <div class="field">
+        <label>Speaking rate <output id="dRateOut"></output></label>
+        <input type="range" id="dRate" min="0.5" max="1.8" step="0.05">
+      </div>
+      <div class="field">
+        <label>Pause between strings <output id="dPauseOut"></output></label>
+        <input type="range" id="dPause" min="1" max="15" step="0.5">
+      </div>
+      <div class="field">
+        <label>Voice</label>
+        <select id="dVoice"></select>
+      </div>
+      <div class="field" style="display:flex;flex-direction:column;justify-content:flex-end;gap:8px">
+        <label class="check"><input type="checkbox" id="dDigits"> Include digits 0–9</label>
+        <label class="check"><input type="checkbox" id="dAnnounce"> Announce string number</label>
+      </div>
+    </div>
+
+    <div class="panel">
+      <div class="progress" id="dProgress">Grab a pen and paper, then press Start.</div>
+      <div class="status" id="dStatus"></div>
+      <div class="actions">
+        <button class="btn go" id="dStartBtn">▶ Start</button>
+        <button class="btn" id="dPauseBtn" disabled>⏸ Pause</button>
+        <button class="btn stop" id="dStopBtn" disabled>■ Stop</button>
+        <button class="btn" id="dReplayBtn" disabled>↻ Replay same set</button>
+        <button class="btn primary" id="dRevealBtn" disabled>Show answers</button>
+      </div>
+      <div class="hint"><kbd>S</kbd> start · <kbd>P</kbd> pause/resume · <kbd>Esc</kbd> stop · <kbd>A</kbd> show answers</div>
+    </div>
+
+    <div class="panel" id="dAnswersPanel" style="display:none">
+      <div class="answers" id="dAnswers"></div>
+    </div>
+  </section>
+
+  <div class="panel">
+    <details>
+      <summary>NATO alphabet reference</summary>
+      <div class="ref" id="ref"></div>
+    </details>
+  </div>
+</main>
+
+<script>
+// ---------- Data ----------
+// `display` is the official ICAO spelling; `say` is tuned so TTS engines pronounce it naturally.
+const NATO = {
+  A:{display:'Alfa',say:'Alpha'}, B:{display:'Bravo',say:'Bravo'}, C:{display:'Charlie',say:'Charlie'},
+  D:{display:'Delta',say:'Delta'}, E:{display:'Echo',say:'Echo'}, F:{display:'Foxtrot',say:'Foxtrot'},
+  G:{display:'Golf',say:'Golf'}, H:{display:'Hotel',say:'Hotel'}, I:{display:'India',say:'India'},
+  J:{display:'Juliett',say:'Juliet'}, K:{display:'Kilo',say:'Kilo'}, L:{display:'Lima',say:'Lima'},
+  M:{display:'Mike',say:'Mike'}, N:{display:'November',say:'November'}, O:{display:'Oscar',say:'Oscar'},
+  P:{display:'Papa',say:'Papa'}, Q:{display:'Quebec',say:'Kebeck'}, R:{display:'Romeo',say:'Romeo'},
+  S:{display:'Sierra',say:'Sierra'}, T:{display:'Tango',say:'Tango'}, U:{display:'Uniform',say:'Uniform'},
+  V:{display:'Victor',say:'Victor'}, W:{display:'Whiskey',say:'Whiskey'}, X:{display:'X-ray',say:'X-ray'},
+  Y:{display:'Yankee',say:'Yankee'}, Z:{display:'Zulu',say:'Zulu'},
+  0:{display:'Zero',say:'Zero'}, 1:{display:'One',say:'One'}, 2:{display:'Two',say:'Two'},
+  3:{display:'Three',say:'Three'}, 4:{display:'Four',say:'Four'}, 5:{display:'Five',say:'Five'},
+  6:{display:'Six',say:'Six'}, 7:{display:'Seven',say:'Seven'}, 8:{display:'Eight',say:'Eight'},
+  9:{display:'Niner',say:'Niner'},
+};
+const LETTERS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+const DIGITS = '0123456789';
+
+const WORDS = `
+ox ax go up we by my it on at to be no so do if in is me us
+cat dog sun box sky fox jet map key cup red pen zip vex jaw wax quiz hat ice oak yak gym fly
+jump fish lamp wolf king frog rock bird ship snow wind gold milk park ring zone quay jazz hawk
+yard vial plum moth glow kite cove whip echo talk duck
+apple brave chair delta eagle flame grape house input joker knife lemon mango night ocean
+piano queen radio storm tiger umbra voice whale xenon yacht zebra crisp glyph jumpy quilt
+oxide vivid waltz pixel sword
+anchor bridge castle desert engine forest guitar harbor island jungle kitten ladder magnet
+napkin orange pepper quartz rabbit silver tunnel violet window yellow zipper frozen sphinx
+blazer jigsaw oxygen
+airport balloon cabinet dolphin example fortune gravity hamster jackpot kingdom lantern
+mustard network octopus pyramid quality rainbow shuttle trumpet unicorn vampire weather
+zealous whiskey jukebox
+alphabet backpack calendar dinosaur elephant firework hospital keyboard language mountain
+notebook painting question research squirrel triangle umbrella vacation wildlife xylophone
+quizzing
+adventure blueprint chocolate dangerous education framework geography happiness
+important jellyfish kilometer landscape motorbike nightmare orchestra paragraph
+quarterly satellite telescope vegetable waterfall
+basketball calculator dictionary experience friendship generation helicopter
+identities journalism leadership microphone navigation photograph quarantine
+skyscraper technology volleyball
+background playground strawberry university complexity
+`.trim().split(/\s+/).map(w => w.toUpperCase());
+
+// ---------- Helpers ----------
+const $ = id => document.getElementById(id);
+const rand = n => Math.floor(Math.random() * n);
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+
+function generate(len, source, digits) {
+  if (source === 'words') {
+    // Pick a word with the exact length, or the closest available length.
+    let pool = WORDS.filter(w => w.length === len);
+    for (let d = 1; !pool.length && d < 12; d++) {
+      pool = WORDS.filter(w => Math.abs(w.length - len) === d);
+    }
+    return pool[rand(pool.length)];
+  }
+  const chars = LETTERS + (digits ? DIGITS : '');
+  let s = '';
+  for (let i = 0; i < len; i++) s += chars[rand(chars.length)];
+  return s;
+}
+
+const natoDisplay = s => [...s].map(c => NATO[c].display);
+
+// ---------- Settings (persisted) ----------
+const DEFAULTS = {
+  sSource: 'random', sLen: 5, sTimer: 0, sDigits: false,
+  dSource: 'random', dLen: 5, dCount: 5, dGap: 1.5, dRate: 0.9, dPause: 4,
+  dVoice: '', dDigits: false, dAnnounce: true, mode: 'speak',
+};
+const settings = { ...DEFAULTS, ...JSON.parse(localStorage.getItem('nato-settings') || '{}') };
+const save = () => localStorage.setItem('nato-settings', JSON.stringify(settings));
+
+const fmt = {
+  sLen: v => v, dLen: v => v, dCount: v => v,
+  sTimer: v => +v === 0 ? 'off' : v + ' s',
+  dGap: v => (+v).toFixed(1) + ' s',
+  dPause: v => (+v).toFixed(1) + ' s',
+  dRate: v => (+v).toFixed(2) + '×',
+};
+for (const id of Object.keys(fmt)) {
+  const el = $(id), out = $(id + 'Out');
+  el.value = settings[id];
+  out.textContent = fmt[id](el.value);
+  el.addEventListener('input', () => {
+    settings[id] = +el.value; out.textContent = fmt[id](el.value); save();
+  });
+}
+for (const id of ['sDigits', 'dDigits', 'dAnnounce']) {
+  $(id).checked = settings[id];
+  $(id).addEventListener('change', () => { settings[id] = $(id).checked; save(); syncDigitToggles(); });
+}
+document.querySelectorAll('.seg').forEach(seg => {
+  const key = seg.dataset.setting;
+  const render = () => seg.querySelectorAll('button').forEach(b =>
+    b.classList.toggle('active', b.dataset.value === settings[key]));
+  seg.addEventListener('click', e => {
+    if (!e.target.dataset.value) return;
+    settings[key] = e.target.dataset.value; save(); render(); syncDigitToggles();
+    if (key === 'sSource') nextWord();
+  });
+  render();
+});
+// Digits only make sense for random strings.
+function syncDigitToggles() {
+  $('sDigits').disabled = settings.sSource === 'words';
+  $('dDigits').disabled = settings.dSource === 'words';
+}
+syncDigitToggles();
+$('sLen').addEventListener('change', nextWord);
+$('sDigits').addEventListener('change', nextWord);
+
+// ---------- Tabs ----------
+function setMode(mode) {
+  settings.mode = mode; save();
+  document.querySelectorAll('.tabs button').forEach(b => b.classList.toggle('active', b.dataset.mode === mode));
+  document.querySelectorAll('section.mode').forEach(s => s.classList.toggle('active', s.id === 'mode-' + mode));
+  if (mode !== 'dictate') stopDictation();
+}
+document.querySelectorAll('.tabs button').forEach(b => b.addEventListener('click', () => setMode(b.dataset.mode)));
+
+// ---------- Speech ----------
+const tts = window.speechSynthesis;
+if (!tts) $('ttsWarn').style.display = 'block';
+let voices = [];
+function loadVoices() {
+  if (!tts) return;
+  voices = tts.getVoices().filter(v => v.lang.toLowerCase().startsWith('en'));
+  const sel = $('dVoice');
+  sel.innerHTML = '<option value="">System default</option>' +
+    voices.map(v => `<option value="${v.voiceURI}">${v.name} (${v.lang})</option>`).join('');
+  sel.value = voices.some(v => v.voiceURI === settings.dVoice) ? settings.dVoice : '';
+}
+if (tts) { loadVoices(); tts.addEventListener('voiceschanged', loadVoices); }
+$('dVoice').addEventListener('change', e => { settings.dVoice = e.target.value; save(); });
+
+let currentUtterance = null; // keep a reference so Chrome doesn't GC it mid-speech
+function speak(text) {
+  return new Promise(resolve => {
+    if (!tts) return resolve();
+    const u = new SpeechSynthesisUtterance(text);
+    const v = voices.find(v => v.voiceURI === settings.dVoice);
+    if (v) { u.voice = v; u.lang = v.lang; } else { u.lang = 'en-US'; }
+    u.rate = settings.dRate;
+    u.onend = u.onerror = () => resolve();
+    currentUtterance = u;
+    tts.speak(u);
+  });
+}
+
+// ---------- Speak mode ----------
+let sCurrent = '', sCount = 0, sRevealed = false, sTimerId = null, sTimerStart = 0;
+
+function nextWord() {
+  sCurrent = generate(settings.sLen, settings.sSource, settings.sDigits);
+  sCount++;
+  sRevealed = false;
+  $('sWord').textContent = sCurrent;
+  $('sReveal').innerHTML = '';
+  $('sCounter').textContent = `Word #${sCount}`;
+  $('sRevealBtn').disabled = false;
+  startSpeakTimer();
+}
+function revealWord() {
+  if (sRevealed) return;
+  sRevealed = true;
+  stopSpeakTimer();
+  $('sReveal').innerHTML = [...sCurrent].map(c => `<span class="chip"><b>${c}</b> ${NATO[c].display}</span>`).join('');
+  $('sRevealBtn').disabled = true;
+}
+function startSpeakTimer() {
+  stopSpeakTimer();
+  const secs = settings.sTimer;
+  if (!secs) return;
+  sTimerStart = performance.now();
+  const tick = () => {
+    const p = (performance.now() - sTimerStart) / (secs * 1000);
+    $('sTimerBar').style.width = Math.min(p, 1) * 100 + '%';
+    if (p >= 1) return revealWord();
+    sTimerId = requestAnimationFrame(tick);
+  };
+  sTimerId = requestAnimationFrame(tick);
+}
+function stopSpeakTimer() {
+  cancelAnimationFrame(sTimerId);
+  $('sTimerBar').style.width = '0';
+}
+async function hearWord() {
+  revealWord();
+  tts?.cancel();
+  for (const c of sCurrent) { await speak(NATO[c].say); await sleep(250); }
+}
+$('sRevealBtn').addEventListener('click', revealWord);
+$('sNextBtn').addEventListener('click', nextWord);
+$('sHearBtn').addEventListener('click', hearWord);
+$('sTimer').addEventListener('change', startSpeakTimer);
+
+// ---------- Dictation mode ----------
+let dSet = [], dRunId = 0, dPaused = false, dRunning = false, dStatusBeforePause = '';
+
+async function waitWhilePaused(runId) {
+  while (dPaused && runId === dRunId) await sleep(100);
+}
+// Sleep that respects pause/stop.
+async function dSleep(ms, runId) {
+  const end = performance.now() + ms;
+  while (performance.now() < end) {
+    if (runId !== dRunId) return;
+    if (dPaused) { const left = end - performance.now(); await waitWhilePaused(runId); return dSleep(left, runId); }
+    await sleep(Math.min(100, end - performance.now()));
+  }
+}
+
+async function runDictation(set) {
+  const runId = ++dRunId;
+  dSet = set; dRunning = true; dPaused = false;
+  updateDictButtons();
+  $('dAnswersPanel').style.display = 'none';
+  $('dStatus').textContent = 'Get ready…';
+  await dSleep(1200, runId);
+
+  for (let i = 0; i < set.length; i++) {
+    if (runId !== dRunId) return;
+    $('dProgress').textContent = `String ${i + 1} of ${set.length}`;
+    if (settings.dAnnounce) {
+      $('dStatus').textContent = `Group ${i + 1}`;
+      await speak(`Group ${i + 1}`);
+      await dSleep(800, runId);
+    }
+    const s = set[i];
+    for (let j = 0; j < s.length; j++) {
+      if (runId !== dRunId) return;
+      await waitWhilePaused(runId);
+      $('dStatus').textContent = '●'.repeat(j + 1) + '○'.repeat(s.length - j - 1);
+      await speak(NATO[s[j]].say);
+      if (j < s.length - 1) await dSleep(settings.dGap * 1000, runId);
+    }
+    if (i < set.length - 1) {
+      $('dStatus').textContent = '…';
+      await dSleep(settings.dPause * 1000, runId);
+    }
+  }
+  if (runId !== dRunId) return;
+  dRunning = false;
+  $('dStatus').textContent = 'Done! Check your answers.';
+  $('dProgress').textContent = `${set.length} string${set.length > 1 ? 's' : ''} dictated`;
+  updateDictButtons();
+}
+
+function startDictation() {
+  const set = Array.from({ length: settings.dCount }, () => generate(settings.dLen, settings.dSource, settings.dDigits));
+  runDictation(set);
+}
+function stopDictation() {
+  if (!dRunning) return;
+  dRunId++; dRunning = false; dPaused = false;
+  tts?.cancel();
+  $('dStatus').textContent = 'Stopped.';
+  updateDictButtons();
+}
+function togglePause() {
+  if (!dRunning) return;
+  dPaused = !dPaused;
+  if (dPaused) tts?.pause(); else tts?.resume();
+  $('dPauseBtn').textContent = dPaused ? '▶ Resume' : '⏸ Pause';
+  if (dPaused) { dStatusBeforePause = $('dStatus').textContent; $('dStatus').textContent = 'Paused'; }
+  else $('dStatus').textContent = dStatusBeforePause;
+}
+function showAnswers() {
+  if (!dSet.length) return;
+  $('dAnswersPanel').style.display = 'block';
+  $('dAnswers').innerHTML = dSet.map((s, i) => `
+    <div class="answer">
+      <div class="top"><span class="num">${i + 1}.</span><span class="str">${s}</span>
+        <button class="btn replay" data-i="${i}">🔊</button></div>
+      <div class="nato">${natoDisplay(s).join(' · ')}</div>
+    </div>`).join('');
+  $('dAnswersPanel').scrollIntoView({ behavior: 'smooth' });
+}
+$('dAnswers').addEventListener('click', async e => {
+  const i = e.target.dataset.i;
+  if (i === undefined || dRunning) return;
+  tts?.cancel();
+  for (const c of dSet[i]) { await speak(NATO[c].say); await sleep(settings.dGap * 1000); }
+});
+function updateDictButtons() {
+  $('dStartBtn').disabled = dRunning;
+  $('dPauseBtn').disabled = !dRunning;
+  $('dStopBtn').disabled = !dRunning;
+  $('dReplayBtn').disabled = dRunning || !dSet.length;
+  $('dRevealBtn').disabled = dRunning || !dSet.length;
+  $('dPauseBtn').textContent = '⏸ Pause';
+}
+$('dStartBtn').addEventListener('click', startDictation);
+$('dStopBtn').addEventListener('click', stopDictation);
+$('dPauseBtn').addEventListener('click', togglePause);
+$('dReplayBtn').addEventListener('click', () => runDictation(dSet));
+$('dRevealBtn').addEventListener('click', showAnswers);
+
+// ---------- Keyboard ----------
+document.addEventListener('keydown', e => {
+  if (e.target.matches('input, select') && e.key !== 'Escape') return;
+  if (settings.mode === 'speak') {
+    if (e.key === ' ') { e.preventDefault(); revealWord(); }
+    else if (e.key === 'Enter' || e.key === 'ArrowRight') { e.preventDefault(); nextWord(); }
+    else if (e.key.toLowerCase() === 'h') hearWord();
+  } else {
+    const k = e.key.toLowerCase();
+    if (k === 's' && !dRunning) startDictation();
+    else if (k === 'p') togglePause();
+    else if (e.key === 'Escape') stopDictation();
+    else if (k === 'a' && !dRunning) showAnswers();
+  }
+});
+
+// ---------- Reference ----------
+$('ref').innerHTML = Object.entries(NATO).map(([k, v]) => `<div><b>${k}</b>${v.display}</div>`).join('');
+
+// ---------- Init ----------
+setMode(settings.mode);
+nextWord();
+</script>
+</body>
+</html>
