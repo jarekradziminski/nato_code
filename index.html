@@ -144,6 +144,39 @@
   .options.answered .option { cursor: default; }
   .hoist { display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 18px 0 6px; }
   .hoist .flag { width: 92px; height: auto; }
+  /* ---------- Morse ---------- */
+  .lamp-wrap { display: grid; place-items: center; padding: 16px 0 0; }
+  .lamp {
+    width: 72px; height: 72px; border-radius: 50%; border: 3px solid #374151;
+    background: radial-gradient(circle at 35% 35%, #4b5563, #1f2937);
+  }
+  .lamp.big { width: 128px; height: 128px; }
+  .lamp.on { background: radial-gradient(circle at 40% 40%, #fffbe6, #ffd54a 60%, #f59e0b); box-shadow: 0 0 32px 12px rgb(255 213 74 / .7); }
+  .morse-big { font: 700 4rem/1.1 ui-monospace, Menlo, monospace; text-align: center; padding: 16px 0 4px; color: var(--muted); }
+  .morse-big.ok { color: var(--good); } .morse-big.bad { color: var(--bad); } .morse-big.new { color: var(--accent); }
+  .morse-pattern { text-align: center; font: 1.3rem ui-monospace, Menlo, monospace; letter-spacing: .08em; min-height: 1.6em; }
+  .morse-pattern small { display: block; font: .85rem system-ui, sans-serif; color: var(--muted); letter-spacing: 0; margin-top: 2px; }
+  .koch-set { display: flex; flex-wrap: wrap; gap: 5px; justify-content: center; margin-top: 12px; }
+  .kchar { font-family: ui-monospace, Menlo, monospace; padding: 2px 7px; border-radius: 6px; background: var(--card2); font-size: .9rem; }
+  .kchar.new { background: var(--accent); color: var(--accent-ink); font-weight: 700; }
+  .keypad { display: grid; grid-template-columns: repeat(auto-fill, minmax(50px, 1fr)); gap: 6px; margin-top: 16px; }
+  .key {
+    min-height: 50px; border-radius: 10px; border: 1px solid var(--border); background: var(--card2); color: var(--text);
+    font: 600 1.25rem ui-monospace, Menlo, monospace; cursor: pointer;
+  }
+  .key.ok { background: color-mix(in srgb, var(--good) 25%, var(--card)); border-color: var(--good); }
+  .key.bad { background: color-mix(in srgb, var(--bad) 25%, var(--card)); border-color: var(--bad); }
+  .koch-meter { display: flex; align-items: center; justify-content: center; gap: 10px; margin-top: 14px; font-size: .8rem; color: var(--muted); }
+  .koch-meter .bar { flex: 0 0 120px; height: 8px; background: var(--card2); border-radius: 4px; position: relative; overflow: hidden; }
+  .koch-meter .bar div { height: 100%; width: 0; background: var(--muted); }
+  .koch-meter .bar div.good { background: var(--good); }
+  .koch-meter .bar::after { content: ''; position: absolute; left: 90%; top: 0; bottom: 0; width: 2px; background: var(--text); opacity: .5; }
+  .mref { display: grid; grid-template-columns: repeat(auto-fill, minmax(118px, 1fr)); gap: 6px; margin-top: 14px; }
+  .mref button {
+    display: flex; gap: 10px; align-items: baseline; background: var(--card2); border: 0; border-radius: 8px;
+    padding: 8px 10px; color: var(--text); cursor: pointer; font: .95rem ui-monospace, Menlo, monospace;
+  }
+  .mref b { color: var(--accent); }
   .flag-ref { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 10px; margin-top: 14px; }
   .flag-ref > div { display: grid; grid-template-columns: 56px 1fr; gap: 12px; align-items: start; background: var(--card2); border-radius: 12px; padding: 10px; }
   .flag-ref .flag { width: 56px; height: auto; }
@@ -283,6 +316,7 @@
     <button data-mode="speak"><span>🗣️</span>Speak</button>
     <button data-mode="dictate"><span>🎧</span>Dictation</button>
     <button data-mode="flags"><span>🚩</span>Flags</button>
+    <button data-mode="morse"><span>📡</span>Morse</button>
     <button data-mode="progress"><span>📊</span>Progress</button>
   </nav>
 </header>
@@ -458,12 +492,103 @@
     </details>
   </section>
 
+  <!-- ================= MORSE ================= -->
+  <section class="mode" id="mode-morse">
+    <div class="card">
+      <div class="seg" data-setting="mMode">
+        <button data-value="koch">Koch lessons</button>
+        <button data-value="copy">Copy</button>
+        <button data-value="signals">Signals</button>
+      </div>
+      <button class="focus-pill" hidden></button>
+      <div class="meta" style="margin-top:12px"><span id="mCounter"></span><span id="mSession"></span></div>
+      <div class="lamp-wrap" id="mLampWrap"><div class="lamp" id="mLamp"></div></div>
+      <div id="mStage"></div>
+      <div class="actions" id="mActions"></div>
+      <div class="hint kbd-only" id="mHint"></div>
+    </div>
+
+    <details class="card" open>
+      <summary>⚙️ Settings</summary>
+      <div class="settings">
+        <div class="field full">
+          <label>Output</label>
+          <div class="seg" data-setting="mOutput">
+            <button data-value="sound">🔊 Sound</button>
+            <button data-value="light">💡 Lamp</button>
+            <button data-value="both">Both</button>
+          </div>
+        </div>
+        <div class="field" data-mwhen="koch">
+          <label>Koch characters <output id="mKochOut"></output></label>
+          <input type="range" id="mKoch" min="2" max="36" step="1">
+        </div>
+        <div class="field">
+          <label>Character speed <output id="mWpmOut"></output></label>
+          <input type="range" id="mWpm" min="10" max="35" step="1">
+        </div>
+        <div class="field">
+          <label>Effective speed <output id="mEffOut"></output></label>
+          <input type="range" id="mEff" min="4" max="35" step="1">
+          <div class="muted small" style="margin-top:4px">Farnsworth spacing: letters at full speed, extra gaps between them.</div>
+        </div>
+        <div class="field">
+          <label>Tone <output id="mToneOut"></output></label>
+          <input type="range" id="mTone" min="400" max="900" step="10">
+        </div>
+        <div class="field full" data-mwhen="copy">
+          <label>Characters</label>
+          <div class="seg" data-setting="mSource">
+            <button data-value="koch">Koch set</button>
+            <button data-value="letters">A–Z</button>
+            <button data-value="all">A–Z 0–9</button>
+            <button data-value="words">Words</button>
+          </div>
+        </div>
+        <div class="field full" data-mwhen="copy">
+          <label>Answers</label>
+          <div class="seg" data-setting="mAnswer">
+            <button data-value="paper">✏️ On paper</button>
+            <button data-value="type">⌨️ Type in app</button>
+          </div>
+        </div>
+        <div class="field" data-mwhen="copy">
+          <label>Min group length <output id="mLenOut"></output></label>
+          <input type="range" id="mLen" min="1" max="10" step="1">
+        </div>
+        <div class="field" data-mwhen="copy">
+          <label>Max group length <output id="mLenMaxOut"></output></label>
+          <input type="range" id="mLenMax" min="1" max="10" step="1">
+        </div>
+        <div class="field" data-mwhen="copy">
+          <label>Number of groups <output id="mCountOut"></output></label>
+          <input type="range" id="mCount" min="1" max="20" step="1">
+        </div>
+        <div class="field" data-mwhen="copy">
+          <label>Pause between groups <output id="mPauseOut"></output></label>
+          <input type="range" id="mPause" min="1" max="10" step="0.5">
+        </div>
+        <div class="field" data-mwhen="copy">
+          <label>Radio static <output id="mStaticOut"></output></label>
+          <input type="range" id="mStatic" min="0" max="100" step="5">
+        </div>
+      </div>
+    </details>
+
+    <details class="card">
+      <summary>📖 Morse reference</summary>
+      <p class="muted small" style="margin:10px 0 0">Tap a character to hear it. Try to learn the sound, not the dots and dashes.</p>
+      <div class="mref" id="mRef"></div>
+    </details>
+  </section>
+
   <!-- ================= PROGRESS ================= -->
   <section class="mode" id="mode-progress">
     <div class="card">
       <div class="seg" data-setting="pView" style="margin-bottom:14px">
-        <button data-value="nato">🗣️ NATO letters</button>
-        <button data-value="flags">🚩 Signal flags</button>
+        <button data-value="nato">🗣️ NATO</button>
+        <button data-value="flags">🚩 Flags</button>
+        <button data-value="morse">📡 Morse</button>
       </div>
       <div class="stat-row" id="pStats"></div>
       <div style="margin-top:16px">
@@ -628,6 +753,8 @@ const DEFAULTS = {
   sSource: 'random', sFormat: 'mixed', sLen: 5, sLenMax: 5, sTimer: 0, sDigits: false,
   dSource: 'random', dFormat: 'mixed', dLen: 5, dLenMax: 5, dCount: 5, dGap: 1.5, dRate: 0.9, dPause: 4,
   dStatic: 0, dVoice: '', dDigits: false, dAnnounce: true, dLadder: false, radioDigits: false, dAnswer: 'paper', focus: [], fMode: 'recall', pView: 'nato',
+  mMode: 'koch', mOutput: 'sound', mWpm: 20, mEff: 10, mTone: 600, mKoch: 2, mSource: 'koch', mAnswer: 'type',
+  mLen: 5, mLenMax: 5, mCount: 5, mPause: 3, mStatic: 0,
 };
 const settings = { ...DEFAULTS, ...JSON.parse(localStorage.getItem('nato-settings') || '{}') };
 const save = () => localStorage.setItem('nato-settings', JSON.stringify(settings));
@@ -738,6 +865,9 @@ const fmt = {
   dPause: v => (+v).toFixed(1) + ' s',
   dRate: v => (+v).toFixed(2) + '×',
   dStatic: v => +v === 0 ? 'off' : v + '%',
+  mStatic: v => +v === 0 ? 'off' : v + '%',
+  mWpm: v => v + ' wpm', mEff: v => v + ' wpm', mTone: v => v + ' Hz', mKoch: v => v,
+  mLen: v => v, mLenMax: v => v, mCount: v => v, mPause: v => (+v).toFixed(1) + ' s',
 };
 function setRange(id, v) {
   settings[id] = +v; $(id).value = v; $(id + 'Out').textContent = fmt[id](v);
@@ -753,6 +883,8 @@ function linkRange(minId, maxId) {
 }
 linkRange('sLen', 'sLenMax');
 linkRange('dLen', 'dLenMax');
+linkRange('mLen', 'mLenMax');
+linkRange('mEff', 'mWpm'); // effective speed can't exceed character speed
 
 // One setting, shown in both modes' settings.
 for (const id of ['sRadioDigits', 'dRadioDigits']) {
@@ -796,6 +928,8 @@ document.querySelectorAll('.seg').forEach(seg => {
     settings[key] = v; save(); render(); syncSourceFields();
     if (key === 'dAnswer') updateAnswerMode();
     if (key === 'fMode') nextFlag();
+    if (key === 'mMode' || key === 'mAnswer') renderMorse();
+    if (key === 'mOutput') syncMorseFields();
     if (key === 'pView') renderProgress();
     if (key === 'sSource') nextWord();
   });
@@ -824,6 +958,7 @@ function setMode(mode) {
   document.querySelectorAll('.tabs button').forEach(b => b.classList.toggle('active', b.dataset.mode === mode));
   document.querySelectorAll('section.mode').forEach(s => s.classList.toggle('active', s.id === 'mode-' + mode));
   if (mode !== 'dictate') stopDictation();
+  if (mode !== 'morse' && typeof koch !== 'undefined') stopMorseAll();
   if (mode === 'progress') renderProgress();
   if (mode === 'dictate') prefetchRadio();
 }
@@ -1009,9 +1144,9 @@ function playSample(buf, variant) {
     src.start();
   });
 }
-function setStatic(on) {
+function setStatic(on, level = settings.dStatic) {
   if (!noiseGain) return;
-  noiseGain.gain.setTargetAtTime(on ? settings.dStatic / 100 * 0.5 : 0, audioCtx.currentTime, 0.08);
+  noiseGain.gain.setTargetAtTime(on ? level / 100 * 0.5 : 0, audioCtx.currentTime, 0.08);
 }
 $('dStatic').addEventListener('input', () => {
   if (dRunning && settings.dStatic > 0) ensureAudio();
@@ -1347,8 +1482,21 @@ function renderProgress() {
   renderHistory();
   renderGrid();
 }
+// What the Progress tab shows for each skill.
+const PROGRESS_VIEWS = {
+  nato: { src: () => stats, chars: [...LETTERS, ...DIGITS], name: c => nato(c).display, day: h => [h.n || 0, h.wrong || 0],
+    tile: 'letters scored', noun: 'letters', column: 'Letters', chartTitle: 'Letters practised', gridTitle: 'Per-letter accuracy',
+    empty: 'Your daily history appears here once you mark answers (Speak: reveal, then Next; Dictation: Save results).' },
+  flags: { src: () => flagStats, chars: [...LETTERS], name: c => nato(c).display, day: h => [h.fn || 0, h.fw || 0],
+    tile: 'flags answered', noun: 'flags', column: 'Flags', chartTitle: 'Flags answered', gridTitle: 'Per-flag accuracy',
+    empty: 'Your daily flag history appears here once you answer flags in the Flags tab.' },
+  morse: { src: () => morseStats, chars: [...LETTERS, ...DIGITS], name: c => morsePattern(c), day: h => [h.mn || 0, h.mw || 0],
+    tile: 'characters copied', noun: 'characters', column: 'Characters', chartTitle: 'Morse characters copied', gridTitle: 'Per-character accuracy',
+    empty: 'Your daily Morse history appears here once you answer in the Morse tab.' },
+};
+const progressView = () => PROGRESS_VIEWS[settings.pView] || PROGRESS_VIEWS.nato;
 function streaks() {
-  const practised = h => h && (h.n || 0) + (h.fn || 0) > 0;
+  const practised = h => h && (h.n || 0) + (h.fn || 0) + (h.mn || 0) > 0;
   const has = d => practised(history[dayKey(d)]);
   const d = new Date();
   if (!has(d)) d.setDate(d.getDate() - 1); // today not practised yet: streak still alive
@@ -1363,16 +1511,16 @@ function streaks() {
   return { current, best };
 }
 function renderGrid() {
-  const flagsView = settings.pView === 'flags', src = flagsView ? flagStats : stats;
-  const chars = flagsView ? [...LETTERS] : [...LETTERS, ...DIGITS];
+  const v = progressView(), flagsView = settings.pView === 'flags', src = v.src();
+  const chars = v.chars;
   const seen = chars.reduce((a, c) => a + (src[c]?.seen || 0), 0);
   const wrong = chars.reduce((a, c) => a + (src[c]?.wrong || 0), 0);
   const weakest = chars.filter(c => src[c]?.seen >= 3 && src[c].wrong)
     .sort((a, b) => src[b].wrong / src[b].seen - src[a].wrong / src[a].seen).slice(0, 4);
   const st = streaks();
-  $('pGridTitle').textContent = flagsView ? 'Per-flag accuracy' : 'Per-letter accuracy';
+  $('pGridTitle').textContent = v.gridTitle;
   $('pStats').innerHTML = `
-    <div class="stat"><b>${seen.toLocaleString()}</b><span>${flagsView ? 'flags answered' : 'letters scored'}</span></div>
+    <div class="stat"><b>${seen.toLocaleString()}</b><span>${v.tile}</span></div>
     <div class="stat"><b>${seen ? Math.round(100 * (1 - wrong / seen)) + '%' : '–'}</b><span>accuracy</span></div>
     <div class="stat"><b>${st.current ? '🔥 ' + st.current : '–'}</b><span>day streak${st.best > st.current ? ` · best ${st.best}` : ''}</span></div>
     <div class="stat"><b>${weakest.join(' ') || '–'}</b><span>weakest</span></div>`;
@@ -1384,12 +1532,12 @@ function renderGrid() {
   $('pGrid').innerHTML = chars.map(c => {
     const s = src[c], f = focus.includes(c) ? ' focused' : '';
     const label = `aria-pressed="${!!f}" data-c="${c}"`, pic = flagsView ? flagSVG(c) : '';
-    if (!s?.seen) return `<button class="cell unseen${f}" ${label}>${pic}<b>${c}</b><span class="name">${nato(c).display}</span><small>not yet</small></button>`;
+    if (!s?.seen) return `<button class="cell unseen${f}" ${label}>${pic}<b>${c}</b><span class="name">${v.name(c)}</span><small>not yet</small></button>`;
     const r = s.wrong / s.seen;
     const bg = r === 0
       ? 'color-mix(in srgb, var(--good) 18%, var(--card2))'
       : `color-mix(in srgb, var(--bad) ${Math.round(Math.min(45, 12 + r * 80))}%, var(--card2))`;
-    return `<button class="cell${f}" ${label} style="background:${bg}">${pic}<b>${c}</b><span class="name">${nato(c).display}</span>
+    return `<button class="cell${f}" ${label} style="background:${bg}">${pic}<b>${c}</b><span class="name">${v.name(c)}</span>
       <small>${Math.round(100 * (1 - r))}% · ${s.seen}×</small></button>`;
   }).join('');
 }
@@ -1415,7 +1563,7 @@ $('pGrid').addEventListener('click', e => {
 $('pFocusClear').addEventListener('click', () => setFocus([]));
 $('pFocusWeak').addEventListener('click', () => {
   // Letters actually missed first (highest error rate), then the least-practised letters.
-  const src = settings.pView === 'flags' ? flagStats : stats;
+  const src = progressView().src();
   const missed = [...LETTERS].filter(c => src[c]?.wrong)
     .sort((a, b) => src[b].wrong / src[b].seen - src[a].wrong / src[a].seen);
   const rest = [...LETTERS].filter(c => !missed.includes(c)).sort((a, b) => (src[a]?.seen || 0) - (src[b]?.seen || 0));
@@ -1428,7 +1576,7 @@ function last30() {
   return Array.from({ length: 30 }, (_, i) => {
     const d = new Date(); d.setHours(12, 0, 0, 0); d.setDate(d.getDate() - 29 + i);
     const h = history[dayKey(d)] || {};
-    const [n, wrong] = settings.pView === 'flags' ? [h.fn || 0, h.fw || 0] : [h.n || 0, h.wrong || 0];
+    const [n, wrong] = progressView().day(h);
     return { date: d, n, acc: n ? 1 - wrong / n : null };
   });
 }
@@ -1471,23 +1619,21 @@ function chartFrame(el, days, ticks, yOf, tickLabel, marks, tip) {
   el.onpointermove = el.onpointerdown = show;
   el.onpointerleave = () => { tipEl.hidden = true; el.querySelectorAll('.hover-band.on').forEach(b => b.classList.remove('on')); };
 }
-const dayTip = d => `<b>${fmtDayLong(d.date)}</b>${d.n ? `${d.n} ${settings.pView === 'flags' ? 'flags' : 'letters'} · ${Math.round(d.acc * 100)}% accuracy` : 'No practice'}`;
+const dayTip = d => `<b>${fmtDayLong(d.date)}</b>${d.n ? `${d.n} ${progressView().noun} · ${Math.round(d.acc * 100)}% accuracy` : 'No practice'}`;
 
 function renderHistory() {
   const days = last30();
   if (!days.some(d => d.n)) {
-    $('pHistory').innerHTML = `<p class="muted small" style="margin:0">${settings.pView === 'flags'
-      ? 'Your daily flag history appears here once you answer flags in the Flags tab.'
-      : 'Your daily history appears here once you mark answers (Speak: reveal, then Next; Dictation: Save results).'}</p>`;
+    $('pHistory').innerHTML = `<p class="muted small" style="margin:0">${progressView().empty}</p>`;
     return;
   }
   $('pHistory').innerHTML = `
-    <p class="chart-title">${settings.pView === 'flags' ? 'Flags answered' : 'Letters practised'}</p><p class="chart-sub">per day</p>
+    <p class="chart-title">${progressView().chartTitle}</p><p class="chart-sub">per day</p>
     <div class="chart-wrap" id="pVolume"></div>
     <p class="chart-title">Accuracy</p><p class="chart-sub">share of letters right, on days you practised</p>
     <div class="chart-wrap" id="pAccuracy"></div>
     <details class="inline"><summary>Show as table</summary>
-      <table class="history-table"><thead><tr><th>Day</th><th>${settings.pView === 'flags' ? 'Flags' : 'Letters'}</th><th>Accuracy</th></tr></thead><tbody>
+      <table class="history-table"><thead><tr><th>Day</th><th>${progressView().column}</th><th>Accuracy</th></tr></thead><tbody>
       ${days.filter(d => d.n).reverse().map(d => `<tr><td>${fmtDayLong(d.date)}</td><td>${d.n}</td><td>${Math.round(d.acc * 100)}%</td></tr>`).join('')}
       </tbody></table></details>`;
 
@@ -1521,7 +1667,8 @@ window.addEventListener('resize', () => {
 $('pReset').addEventListener('click', () => {
   if (!confirm('Reset all progress? This clears per-letter accuracy and your daily history.')) return;
   stats = {}; saveStats(); history = {}; saveHistory();
-  flagStats = {}; localStorage.removeItem('nato-flagstats'); sessionLetters = sessionMisses = 0; renderProgress();
+  flagStats = {}; localStorage.removeItem('nato-flagstats');
+  morseStats = {}; localStorage.removeItem('nato-morsestats'); sessionLetters = sessionMisses = 0; renderProgress();
 });
 
 // ================= Keyboard =================
@@ -1535,6 +1682,8 @@ document.addEventListener('keydown', e => {
     else if (k === 'h') hearWord();
   } else if (settings.mode === 'flags') {
     flagKey(e);
+  } else if (settings.mode === 'morse') {
+    morseKey(e);
   } else if (settings.mode === 'dictate') {
     if (k === 's' && !dRunning) startDictation();
     else if (k === 'p') togglePause();
@@ -1763,9 +1912,379 @@ function flagKey(e) {
 }
 $('fRef').innerHTML = [...LETTERS].map(c => `<div>${flagSVG(c)}<div><div class="name"><b>${c}</b>${NATO[c].display}</div>${meaningHTML(c)}</div></div>`).join('');
 
+// ================= Morse =================
+const MORSE = {
+  A: '.-', B: '-...', C: '-.-.', D: '-..', E: '.', F: '..-.', G: '--.', H: '....', I: '..', J: '.---',
+  K: '-.-', L: '.-..', M: '--', N: '-.', O: '---', P: '.--.', Q: '--.-', R: '.-.', S: '...', T: '-',
+  U: '..-', V: '...-', W: '.--', X: '-..-', Y: '-.--', Z: '--..',
+  0: '-----', 1: '.----', 2: '..---', 3: '...--', 4: '....-', 5: '.....', 6: '-....', 7: '--...', 8: '---..', 9: '----.',
+};
+// Koch order (as used by LCWO), letters and digits only.
+const KOCH_ORDER = 'KMURESNAPTLWIJZFOYVG5Q92H38B47C1D60X';
+const morsePattern = c => [...MORSE[c]].map(x => x === '.' ? '·' : '−').join(' ');
+
+let morseStats = JSON.parse(localStorage.getItem('nato-morsestats') || '{}');
+let mSession = { n: 0, ok: 0 };
+function recordMorse(c, ok) {
+  if (!MORSE[c]) return;
+  const s = morseStats[c] ??= { seen: 0, wrong: 0 };
+  s.seen++; if (!ok) s.wrong++;
+  localStorage.setItem('nato-morsestats', JSON.stringify(morseStats));
+  const day = history[dayKey(new Date())] ??= { n: 0, wrong: 0 };
+  day.mn = (day.mn || 0) + 1; if (!ok) day.mw = (day.mw || 0) + 1;
+  saveHistory();
+  mSession.n++; if (ok) mSession.ok++;
+  $('mSession').textContent = `Session: ${mSession.ok}/${mSession.n} correct`;
+}
+function morseWeight(c) {
+  const s = morseStats[c] || { seen: 0, wrong: 0 };
+  return 1 + 8 * (s.wrong + 0.2) / (s.seen + 2);
+}
+function mPick(pool) {
+  const p = [...focusPool(pool)];
+  return settings.adaptive ? weightedChoice(p, morseWeight) : p[rand(p.length)];
+}
+
+// ---------- Timing & sound ----------
+// PARIS timing: one dot = 1.2 / wpm s. With a lower effective speed, the extra time goes into
+// the gaps between characters and words (ARRL Farnsworth formula).
+function morseTiming() {
+  const c = settings.mWpm, s = Math.min(settings.mEff, c), u = 1.2 / c;
+  if (s >= c) return { u, charGap: 3 * u, wordGap: 7 * u };
+  const ta = (60 * c - 37.2 * s) / (s * c);
+  return { u, charGap: 3 * ta / 19, wordGap: 7 * ta / 19 };
+}
+let toneOsc = null, toneGain = null;
+function getTone() {
+  if (!getAudio()) return false;
+  if (!toneGain) {
+    toneOsc = audioCtx.createOscillator();
+    toneOsc.type = 'sine';
+    toneGain = audioCtx.createGain();
+    toneGain.gain.value = 0;
+    toneOsc.connect(toneGain).connect(audioCtx.destination);
+    toneOsc.start();
+  }
+  toneOsc.frequency.value = settings.mTone;
+  return true;
+}
+// Schedule on the audio clock (sample-accurate), with 5 ms ramps so the tone doesn't click.
+function scheduleMorse(text, t0) {
+  const { u, charGap, wordGap } = morseTiming(), marks = [];
+  const sound = settings.mOutput !== 'light', vol = 0.3, ramp = 0.005, g = toneGain.gain;
+  let t = t0;
+  for (const c of text) {
+    if (c === ' ') { t += wordGap - charGap; continue; }
+    const code = MORSE[c];
+    if (!code) continue;
+    [...code].forEach((sym, k) => {
+      const d = sym === '.' ? u : 3 * u;
+      marks.push({ on: t, off: t + d });
+      if (sound) {
+        g.setValueAtTime(0, t); g.linearRampToValueAtTime(vol, t + ramp);
+        g.setValueAtTime(vol, t + d - ramp); g.linearRampToValueAtTime(0, t + d);
+      }
+      t += d + (k < code.length - 1 ? u : 0);
+    });
+    t += charGap;
+  }
+  return { marks, end: t };
+}
+let morseRun = 0;
+// Play text; resolves true when finished, false if interrupted. Call from a tap the first time (iOS).
+function playMorse(text) {
+  if (!ensureAudio() || !getTone()) return Promise.resolve(false);
+  stopMorse();
+  const run = ++morseRun, t0 = audioCtx.currentTime + 0.08;
+  const { marks, end } = scheduleMorse(text, t0);
+  if (settings.mOutput !== 'sound' && marks.length) {
+    const lamp = $('mLamp');
+    const tick = () => {
+      if (run !== morseRun) return lamp.classList.remove('on');
+      const t = audioCtx.currentTime;
+      lamp.classList.toggle('on', marks.some(m => t >= m.on && t < m.off));
+      if (t < end) requestAnimationFrame(tick); else lamp.classList.remove('on');
+    };
+    requestAnimationFrame(tick);
+  }
+  return new Promise(resolve => setTimeout(() => resolve(run === morseRun), (end - t0) * 1000 + 100));
+}
+function stopMorse() {
+  morseRun++;
+  if (toneGain) { toneGain.gain.cancelScheduledValues(0); toneGain.gain.setValueAtTime(0, audioCtx.currentTime); }
+  $('mLamp').classList.remove('on');
+}
+function stopMorseAll() {
+  koch.started = false;
+  if (mCopy.running) stopCopy();
+  stopMorse();
+}
+
+// ---------- Tab rendering ----------
+const mActions = html => { $('mActions').innerHTML = html; };
+function syncMorseFields() {
+  document.querySelectorAll('#mode-morse [data-mwhen]').forEach(el => { el.hidden = el.dataset.mwhen !== settings.mMode; });
+  $('mLampWrap').hidden = settings.mOutput === 'sound';
+  $('mLamp').classList.toggle('big', settings.mOutput === 'light');
+}
+function renderMorse() {
+  stopMorseAll();
+  syncMorseFields();
+  $('mSession').textContent = mSession.n ? `Session: ${mSession.ok}/${mSession.n} correct` : '';
+  ({ koch: renderKoch, copy: renderCopy, signals: () => nextSignal(false) })[settings.mMode]();
+}
+
+// ---------- Koch lessons ----------
+let koch = { item: null, awaiting: false, window: [], started: false };
+const kochChars = () => KOCH_ORDER.slice(0, settings.mKoch);
+function renderKoch() {
+  const chars = kochChars(), newest = chars.at(-1);
+  $('mCounter').textContent = `Koch: ${chars.length} of ${KOCH_ORDER.length} characters`;
+  $('mStage').innerHTML = `
+    <div class="koch-set">${[...chars].map(c => `<span class="kchar${c === newest ? ' new' : ''}">${c}</span>`).join('')}</div>
+    <div class="morse-big" id="kBig">?</div>
+    <div class="morse-pattern" id="kPattern"><small>Press Start, then answer each character you hear.</small></div>
+    <div class="keypad" id="kPad">${[...chars].map(c => `<button class="key" data-c="${c}">${c}</button>`).join('')}</div>
+    <div class="koch-meter"><div class="bar"><div id="kBar"></div></div><span id="kAcc"></span></div>`;
+  mActions(`<button class="btn primary" id="kStart">▶ Start</button><button class="btn" id="kReplay" disabled>🔁 Replay</button>
+    <button class="btn" id="kHearNew">Hear ${newest}</button>`);
+  $('mHint').innerHTML = '<kbd>Space</kbd> replay · type the character you hear';
+  Object.assign(koch, { item: null, awaiting: false, started: false });
+  updateKochMeter();
+}
+function updateKochMeter() {
+  const w = koch.window, n = w.length, acc = n ? w.filter(Boolean).length / n : 0;
+  $('kBar').style.width = acc * 100 + '%';
+  $('kBar').classList.toggle('good', acc >= 0.9);
+  $('kAcc').textContent = n ? `${Math.round(acc * 100)}% of last ${n}${n < 20 ? ` · ${20 - n} more to unlock` : ''}`
+    : '90% over 20 characters unlocks the next one';
+}
+function kochNext() {
+  const chars = [...kochChars()], newest = chars.at(-1);
+  const pool = chars.length > 2 ? chars.filter(c => c !== koch.item) : chars;
+  const c = settings.adaptive ? weightedChoice(pool, x => morseWeight(x) * (x === newest ? 2 : 1)) : pool[rand(pool.length)];
+  Object.assign(koch, { item: c, awaiting: true });
+  $('kBig').textContent = '?'; $('kBig').className = 'morse-big';
+  $('kPattern').innerHTML = '';
+  $('kPad').querySelectorAll('.key').forEach(k => k.classList.remove('ok', 'bad'));
+  playMorse(c);
+}
+async function kochAnswer(c) {
+  if (!koch.awaiting) return;
+  koch.awaiting = false;
+  const t = koch.item, ok = c === t;
+  recordMorse(t, ok);
+  koch.window.push(ok);
+  if (koch.window.length > 20) koch.window.shift();
+  $('kBig').textContent = t; $('kBig').className = 'morse-big ' + (ok ? 'ok' : 'bad');
+  $('kPattern').innerHTML = `${morsePattern(t)}${ok ? '' : `<small>You answered ${c}</small>`}`;
+  $('kPad').querySelector(`[data-c="${t}"]`)?.classList.add('ok');
+  if (!ok) $('kPad').querySelector(`[data-c="${c}"]`)?.classList.add('bad');
+  updateKochMeter();
+  const acc = koch.window.filter(Boolean).length / koch.window.length;
+  if (koch.window.length >= 20 && acc >= 0.9 && settings.mKoch < KOCH_ORDER.length) return kochLevelUp();
+  if (!ok) { await sleep(300); if (!koch.started) return; await playMorse(t); }
+  await sleep(ok ? 400 : 700);
+  if (koch.started && settings.mode === 'morse' && settings.mMode === 'koch' && !koch.awaiting) kochNext();
+}
+function kochLevelUp() {
+  setRange('mKoch', settings.mKoch + 1); save();
+  koch.window = [];
+  renderKoch();
+  const n = kochChars().at(-1);
+  $('kBig').textContent = n; $('kBig').className = 'morse-big new';
+  $('kPattern').innerHTML = `${morsePattern(n)}<small>New character unlocked: listen to it a few times, then press Start.</small>`;
+  playMorse(`${n} ${n} ${n}`);
+}
+function kochStart() {
+  if (koch.started) { koch.started = false; koch.awaiting = false; stopMorse(); $('kStart').textContent = '▶ Start'; $('kReplay').disabled = true; return; }
+  koch.started = true;
+  $('kStart').textContent = '■ Stop';
+  $('kReplay').disabled = false;
+  kochNext();
+}
+
+// ---------- Copy practice ----------
+let mCopy = { set: [], running: false, run: 0, saved: false };
+function renderCopy() {
+  $('mCounter').textContent = settings.mAnswer === 'type' ? 'Type each group as you hear it.' : 'Write each group on paper.';
+  $('mStage').innerHTML = `<div class="status" id="mStatus">Ready</div><div class="typing" id="mTyping"></div>
+    <div class="answers" id="mAnswers" style="margin-top:14px"></div><div class="result" id="mResult"></div>`;
+  mActions(`<button class="btn primary" id="mStart">▶ Start</button><button class="btn stop" id="mStop" disabled>■ Stop</button>
+    <button class="btn" id="mCheck" disabled>${settings.mAnswer === 'type' ? 'Check answers' : 'Show answers'}</button>`);
+  $('mHint').innerHTML = '';
+}
+function makeGroup() {
+  const len = randLen(settings.mLen, settings.mLenMax);
+  if (settings.mSource === 'words') return pickWord(Math.max(2, len), Math.max(2, settings.mLenMax));
+  const pool = { koch: kochChars(), letters: LETTERS, all: LETTERS + DIGITS }[settings.mSource];
+  return Array.from({ length: len }, () => mPick(pool)).join('');
+}
+function copyButtons() {
+  $('mStart').disabled = mCopy.running;
+  $('mStop').disabled = !mCopy.running;
+  $('mCheck').disabled = mCopy.running || !mCopy.set.length || mCopy.saved;
+}
+async function startCopy() {
+  if (!ensureAudio() || !getTone()) return;
+  const run = ++mCopy.run, set = Array.from({ length: settings.mCount }, makeGroup);
+  Object.assign(mCopy, { set, running: true, saved: false });
+  $('mAnswers').innerHTML = ''; $('mResult').textContent = '';
+  const typing = settings.mAnswer === 'type';
+  $('mTyping').innerHTML = typing ? set.map((_, i) => `<div class="type-row"><span class="num">${i + 1}.</span><input type="text"
+    autocomplete="off" autocorrect="off" autocapitalize="characters" spellcheck="false" enterkeyhint="${i < set.length - 1 ? 'next' : 'done'}"
+    aria-label="Group ${i + 1}"></div>`).join('') : '';
+  if (typing) $('mTyping').querySelector('input').focus(); // inside the tap so the iPhone keyboard opens
+  copyButtons();
+  if (settings.mStatic > 0) setStatic(true, settings.mStatic);
+  keepAwake(true);
+  $('mStatus').textContent = 'Get ready…';
+  await sleep(1000);
+  for (let i = 0; i < set.length; i++) {
+    if (run !== mCopy.run) return;
+    $('mStatus').textContent = `Group ${i + 1} of ${set.length}`;
+    const rows = [...$('mTyping').children];
+    rows.forEach((r, k) => r.classList.toggle('current', k === i));
+    const active = rows.findIndex(r => r.contains(document.activeElement));
+    if (rows[i] && (active === -1 || active < i)) rows[i].querySelector('input').focus({ preventScroll: true });
+    if (!await playMorse(set[i]) || run !== mCopy.run) return;
+    if (i < set.length - 1) await sleep(settings.mPause * 1000);
+  }
+  if (run === mCopy.run) finishCopy('Done! Check your answers.');
+}
+function finishCopy(msg) {
+  mCopy.running = false;
+  setStatic(false);
+  keepAwake(false);
+  $('mStatus').textContent = msg;
+  copyButtons();
+}
+function stopCopy() {
+  mCopy.run++;
+  stopMorse();
+  finishCopy('Stopped');
+}
+function checkCopy() {
+  const inputs = [...$('mTyping').querySelectorAll('input')];
+  $('mAnswers').innerHTML = mCopy.set.map((s, i) => `
+    <div class="answer" data-row="${i}">
+      <div class="answer-head"><span class="num">${i + 1}.</span><span class="str">${s}</span>
+        <button class="icon-btn" data-play="${i}" aria-label="Play">🔊</button></div>
+      <div class="typed" hidden></div>
+      <div class="chips">${[...s].map((c, k) => `<button class="chip" data-i="${k}"><b>${c}</b>${morsePattern(c)}</button>`).join('')}</div>
+    </div>`).join('') + `<div class="actions"><button class="btn primary" id="mSave">✓ Save results</button></div>`;
+  if (inputs.length) {
+    document.querySelectorAll('#mAnswers .answer').forEach(row => {
+      const i = +row.dataset.row, a = alignAnswer(mCopy.set[i], inputs[i].value);
+      row.querySelectorAll('.chip').forEach(ch => ch.classList.toggle('wrong', a.wrong.has(+ch.dataset.i)));
+      let html = '';
+      for (let k = 0; k <= a.typed.length; k++) {
+        html += '<em>▢</em>'.repeat(a.missing[k] || 0);
+        if (k < a.typed.length) html += a.typedOk[k] ? escapeHTML(a.typed[k]) : `<mark>${escapeHTML(a.typed[k])}</mark>`;
+      }
+      const el = row.querySelector('.typed');
+      el.hidden = false;
+      el.innerHTML = `You typed: <span>${html || '<em>(nothing)</em>'}</span>`;
+    });
+  }
+  $('mResult').textContent = inputs.length ? 'Checked automatically. Tap a character to change its mark.' : 'Tap every character you got wrong.';
+  $('mAnswers').scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+function saveCopy() {
+  if (mCopy.saved) return;
+  mCopy.saved = true;
+  let letters = 0, misses = 0;
+  document.querySelectorAll('#mAnswers .answer').forEach(row => {
+    const s = mCopy.set[row.dataset.row], wrong = wrongIndices(row);
+    [...s].forEach((c, k) => recordMorse(c, !wrong.has(k)));
+    letters += s.length; misses += wrong.size;
+  });
+  $('mAnswers').classList.add('locked');
+  $('mSave').disabled = true;
+  $('mResult').textContent = `${letters - misses}/${letters} characters copied correctly`;
+  copyButtons();
+}
+
+// ---------- Maritime single-letter signals ----------
+let sig = { item: null, answered: false };
+function nextSignal(autoplay = true) {
+  const pool = focusPool(HAS_MEANING.join('')), prev = sig.item;
+  let p = [...pool].filter(c => c !== prev);
+  if (!p.length) p = [...pool];
+  const c = settings.adaptive ? weightedChoice(p, morseWeight) : p[rand(p.length)];
+  const opts = optionsFor(c, HAS_MEANING);
+  Object.assign(sig, { item: c, answered: false });
+  $('mCounter').textContent = 'Which signal is this?';
+  $('mStage').innerHTML = `<div class="morse-big" id="sgBig">?</div>
+    <div class="options" id="sgOptions">${opts.map(o => `<button class="option" data-c="${o}">${FLAG_MEANING[o].short}</button>`).join('')}</div>
+    <div class="flag-answer" id="sgAnswer" style="min-height:0;margin-top:14px"></div>`;
+  mActions('<button class="btn" id="sgReplay">🔁 Play</button><button class="btn" id="sgNext" disabled>Next →</button>');
+  $('mHint').innerHTML = '<kbd>Space</kbd> play · <kbd>1</kbd>–<kbd>4</kbd> choose · <kbd>Enter</kbd> next';
+  if (autoplay) playMorse(c);
+}
+function answerSignal(chosen) {
+  if (sig.answered) return;
+  sig.answered = true;
+  const c = sig.item, ok = chosen === c;
+  recordMorse(c, ok);
+  $('sgOptions').classList.add('answered');
+  $('sgOptions').querySelectorAll('.option').forEach(el => {
+    if (el.dataset.c === c) el.classList.add('correct'); else if (el.dataset.c === chosen) el.classList.add('wrong');
+  });
+  $('sgBig').textContent = c; $('sgBig').className = 'morse-big ' + (ok ? 'ok' : 'bad');
+  $('sgAnswer').innerHTML = `<div style="display:flex;gap:14px;align-items:center;justify-content:center;text-align:left">
+    <div style="width:64px">${flagSVG(c)}</div><div><div class="name" style="font-size:1.2rem"><b>${c}</b>${nato(c).display}</div>
+    <div class="morse-pattern" style="text-align:left">${morsePattern(c)}</div></div></div>${meaningHTML(c)}`;
+  $('sgNext').disabled = false; $('sgNext').classList.add('primary');
+}
+
+// ---------- Events ----------
+$('mActions').addEventListener('click', e => {
+  const id = e.target.closest('button')?.id;
+  if (id === 'kStart') kochStart();
+  else if (id === 'kReplay' && koch.item) playMorse(koch.item);
+  else if (id === 'kHearNew') { const n = kochChars().at(-1); playMorse(`${n} ${n} ${n}`); }
+  else if (id === 'mStart') startCopy();
+  else if (id === 'mStop') stopCopy();
+  else if (id === 'mCheck') checkCopy();
+  else if (id === 'sgReplay') playMorse(sig.item);
+  else if (id === 'sgNext') nextSignal();
+});
+$('mStage').addEventListener('click', e => {
+  const key = e.target.closest('.key');
+  if (key) return kochAnswer(key.dataset.c);
+  const opt = e.target.closest('.option');
+  if (opt && $('sgOptions')) return answerSignal(opt.dataset.c);
+  const play = e.target.closest('[data-play]');
+  if (play) return mCopy.running || playMorse(mCopy.set[play.dataset.play]);
+  if (e.target.id === 'mSave') return saveCopy();
+  if (!mCopy.saved) e.target.closest('#mAnswers .chip')?.classList.toggle('wrong');
+});
+$('mStage').addEventListener('keydown', e => {
+  if (e.key !== 'Enter' || !e.target.matches('#mTyping input')) return;
+  e.preventDefault();
+  const next = e.target.closest('.type-row').nextElementSibling?.querySelector('input');
+  next ? next.focus() : e.target.blur();
+});
+function morseKey(e) {
+  const m = settings.mMode, k = e.key.toUpperCase();
+  if (m === 'koch') {
+    if (e.key === ' ') { e.preventDefault(); if (koch.item) playMorse(koch.item); }
+    else if (k.length === 1 && MORSE[k]) kochAnswer(k);
+  } else if (m === 'signals') {
+    if (e.key === ' ') { e.preventDefault(); playMorse(sig.item); }
+    else if (/^[1-4]$/.test(e.key)) answerSignal($('sgOptions').children[+e.key - 1].dataset.c);
+    else if (e.key === 'Enter' && sig.answered) { e.preventDefault(); nextSignal(); }
+  }
+}
+$('mKoch').addEventListener('change', () => { koch.window = []; if (settings.mMode === 'koch') renderKoch(); });
+$('mRef').innerHTML = [...LETTERS, ...DIGITS].map(c => `<button data-c="${c}"><b>${c}</b>${morsePattern(c)}</button>`).join('');
+$('mRef').addEventListener('click', e => { const c = e.target.closest('button')?.dataset.c; if (c) playMorse(c); });
+
 // ================= Init =================
-setMode(['speak', 'dictate', 'flags', 'progress'].includes(settings.mode) ? settings.mode : 'speak');
+setMode(['speak', 'dictate', 'flags', 'morse', 'progress'].includes(settings.mode) ? settings.mode : 'speak');
 nextFlag();
+renderMorse();
 nextWord();
 if ('serviceWorker' in navigator && location.protocol === 'https:') navigator.serviceWorker.register('sw.js');
 </script>
