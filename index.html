@@ -315,7 +315,7 @@
         <div class="field">
           <label>Radio static <output id="dStaticOut"></output></label>
           <input type="range" id="dStatic" min="0" max="100" step="5">
-          <div class="muted small" style="margin-top:4px">When on, a recorded radio voice is used (the voice setting doesn't apply).</div>
+          <div class="muted small" id="dStaticHint" style="margin-top:4px"></div>
         </div>
         <div class="field">
           <label>Voice</label>
@@ -642,6 +642,7 @@ function setMode(mode) {
   document.querySelectorAll('section.mode').forEach(s => s.classList.toggle('active', s.id === 'mode-' + mode));
   if (mode !== 'dictate') stopDictation();
   if (mode === 'progress') renderProgress();
+  if (mode === 'dictate') prefetchRadio();
 }
 document.querySelectorAll('.tabs button').forEach(b => b.addEventListener('click', () => setMode(b.dataset.mode)));
 
@@ -704,10 +705,12 @@ async function speakString(s, gapMs) {
 // uses recorded voice samples played through the same audio graph: they overlap properly
 // everywhere and get a radio-style band filter.
 let audioCtx = null, noiseGain = null, voiceIn = null;
-function ensureAudio() {
+// Creating the context and decoding audio works without a tap; starting playback doesn't.
+function getAudio() {
   const AC = window.AudioContext || window.webkitAudioContext;
-  if (!AC) return false;
+  if (!AC) return null;
   if (!audioCtx) {
+    if (navigator.audioSession) navigator.audioSession.type = 'playback';
     audioCtx = new AC();
     const len = audioCtx.sampleRate * 4;
     const buf = audioCtx.createBuffer(1, len, audioCtx.sampleRate);
@@ -737,9 +740,32 @@ function ensureAudio() {
     hp.connect(lp).connect(voiceGain).connect(audioCtx.destination);
     voiceIn = hp;
   }
-  // iOS can leave the context 'interrupted' after speech synthesis ran.
+  return audioCtx;
+}
+const isIOS = /iP(hone|ad|od)/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+let silentLoop = null;
+// Call from a tap. On iOS, Web Audio is muted by the silent switch unless the page is
+// treated as media playback.
+function ensureAudio() {
+  if (!getAudio()) return false;
+  if (navigator.audioSession) navigator.audioSession.type = 'playback';
+  else if (isIOS) {
+    // Older iOS: a playing <audio> element switches the page to the playback category.
+    silentLoop ??= Object.assign(new Audio(silentWavUrl()), { loop: true });
+    silentLoop.play().catch(() => {});
+  }
+  // iOS can also leave the context 'interrupted' after speech synthesis ran.
   if (audioCtx.state !== 'running') audioCtx.resume();
   return true;
+}
+function silentWavUrl() {
+  const rate = 8000, n = rate / 2, b = new DataView(new ArrayBuffer(44 + n));
+  const str = (o, t) => [...t].forEach((c, i) => b.setUint8(o + i, c.charCodeAt(0)));
+  str(0, 'RIFF'); b.setUint32(4, 36 + n, true); str(8, 'WAVEfmt '); b.setUint32(16, 16, true);
+  b.setUint16(20, 1, true); b.setUint16(22, 1, true); b.setUint32(24, rate, true); b.setUint32(28, rate, true);
+  b.setUint16(32, 1, true); b.setUint16(34, 8, true); str(36, 'data'); b.setUint32(40, n, true);
+  for (let i = 0; i < n; i++) b.setUint8(44 + i, 128); // 8-bit silence
+  return URL.createObjectURL(new Blob([b], { type: 'audio/wav' }));
 }
 
 // Samples were recorded at three speeds; pick the closest and fine-tune with playbackRate.
@@ -747,22 +773,44 @@ const SAMPLE_SETS = { slow: 125 / 175, normal: 1, fast: 240 / 175 };
 const SAMPLE_KEYS = [...LETTERS, ...[...DIGITS].map(d => 'd' + d), 'at', 'dot', 'dash',
   ...Array.from({ length: 20 }, (_, i) => 'g' + (i + 1))];
 const sampleKey = c => /[A-Z]/.test(c) ? c : /\d/.test(c) ? 'd' + c : { '@': 'at', '.': 'dot', '-': 'dash' }[c];
-const sampleCache = {};
+const sampleCache = {}, readySamples = {};
 function chooseVariant(rate) {
   const dist = k => Math.abs(Math.log(rate / SAMPLE_SETS[k]));
   return Object.keys(SAMPLE_SETS).reduce((a, b) => dist(b) < dist(a) ? b : a);
 }
+// Decoded via callbacks as well as the promise, since older Safari only supports callbacks.
+const decode = data => new Promise((ok, fail) => audioCtx.decodeAudioData(data, ok, fail));
 function loadSamples(variant) {
+  if (!getAudio()) return Promise.resolve(null);
   sampleCache[variant] ??= Promise.all(SAMPLE_KEYS.map(async k => {
     const res = await fetch(`audio/${variant}/${k}.m4a`);
-    if (!res.ok) throw new Error(`audio/${variant}/${k}.m4a: ${res.status}`);
-    return [k, await audioCtx.decodeAudioData(await res.arrayBuffer())];
-  })).then(Object.fromEntries).catch(err => {
+    if (!res.ok) throw new Error(`${k}.m4a: HTTP ${res.status}`);
+    return [k, await decode(await res.arrayBuffer())];
+  })).then(entries => {
+    readySamples[variant] = Object.fromEntries(entries);
+    showRadioState();
+    return readySamples[variant];
+  }).catch(err => {
     delete sampleCache[variant]; // allow a retry next time
-    console.warn('Radio voice unavailable, using browser speech', err);
+    showRadioState('Radio voice failed to load (' + (err?.message || err || 'decode error') + '). Using the browser voice.');
     return null;
   });
   return sampleCache[variant];
+}
+// Preload the radio voice while the user is on the Dictation tab, before they press Start.
+function prefetchRadio() {
+  if (settings.dStatic <= 0 || settings.mode !== 'dictate') return showRadioState();
+  const v = chooseVariant(settings.dRate);
+  if (readySamples[v]) return showRadioState();
+  $('dStaticHint').textContent = 'Loading radio voice…';
+  loadSamples(v);
+}
+function showRadioState(error) {
+  const el = $('dStaticHint');
+  if (error) { el.textContent = error; return; }
+  el.textContent = settings.dStatic <= 0 ? 'When on, a recorded radio voice is used (the voice setting doesn\'t apply).'
+    : readySamples[chooseVariant(settings.dRate)] ? 'Radio voice ready ✓ (the voice setting doesn\'t apply)'
+    : 'Loading radio voice…';
 }
 let currentSource = null;
 function playSample(buf, variant) {
@@ -784,6 +832,8 @@ $('dStatic').addEventListener('input', () => {
   if (dRunning && settings.dStatic > 0) ensureAudio();
   setStatic(dRunning && !dPaused);
 });
+$('dStatic').addEventListener('change', prefetchRadio);
+$('dRate').addEventListener('change', prefetchRadio);
 
 // ================= Wake lock =================
 let wakeLock = null;
@@ -884,10 +934,13 @@ const dots = (s, j) => [...s].map((c, i) => c === ' ' ? ' ' : i <= j ? '●' : '
 
 async function runDictation(set) {
   // Everything before the first await runs inside the tap, which iOS requires for audio.
-  const radio = settings.dStatic > 0 && ensureAudio();
-  const variant = radio ? chooseVariant(settings.dRate) : null;
-  const loading = radio ? loadSamples(variant) : null;
-  if (!radio) unlockSpeech(); // speech synthesis would interrupt Web Audio on iOS
+  // Use the radio voice only if it's already loaded, so we know now whether the browser
+  // voice needs unlocking (that has to happen in the tap too, and would interrupt Web Audio on iOS).
+  const variant = chooseVariant(settings.dRate);
+  const samples = settings.dStatic > 0 ? readySamples[variant] : null;
+  if (settings.dStatic > 0) ensureAudio();
+  if (!samples) unlockSpeech();
+  if (settings.dStatic > 0 && !samples) loadSamples(variant); // ready for next time
   keepAwake(true);
   const runId = ++dRunId;
   dSet = set; dRunning = true; dPaused = false; dSaved = false;
@@ -897,12 +950,6 @@ async function runDictation(set) {
   setStatus('Get ready…');
   setStatic(true);
   await dSleep(1200, runId);
-  let samples = null;
-  if (loading) {
-    setStatus('Tuning radio…');
-    samples = await loading;
-    if (runId !== dRunId) return;
-  }
   // Recorded radio voice when available, browser speech otherwise.
   const say = (key, text) => samples?.[key] ? playSample(samples[key], variant) : speak(text);
 
@@ -935,6 +982,7 @@ async function runDictation(set) {
 function finishDictation(msg) {
   dRunning = false; dPaused = false;
   setStatic(false);
+  silentLoop?.pause();
   keepAwake(false);
   setStatus(msg);
   updateDictButtons();
