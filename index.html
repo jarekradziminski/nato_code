@@ -354,8 +354,7 @@
     </div>
   </div>
   <nav class="tabs">
-    <button data-mode="speak"><span>🗣️</span>Speak</button>
-    <button data-mode="dictate"><span>🎧</span>Dictation</button>
+    <button data-mode="nato"><span>🗣️</span>NATO</button>
     <button data-mode="flags"><span>🚩</span>Flags</button>
     <button data-mode="morse"><span>📡</span>Morse</button>
     <button data-mode="progress"><span>📊</span>Progress</button>
@@ -368,8 +367,12 @@
   <!-- ================= SPEAK ================= -->
   <section class="mode" id="mode-speak">
     <div class="card">
-      <div class="meta"><span id="sCounter"></span><span id="sSession"></span></div>
+      <div class="seg" data-setting="nMode">
+        <button data-value="speak">🗣️ Speak</button>
+        <button data-value="dictate">🎧 Dictation</button>
+      </div>
       <button class="focus-pill" hidden></button>
+      <div class="meta" style="margin-top:12px"><span id="sCounter"></span><span id="sSession"></span></div>
       <div class="word" id="sWord">—</div>
       <div class="chips" id="sReveal"></div>
       <div class="tip" id="sTip"></div>
@@ -420,8 +423,12 @@
   <!-- ================= DICTATION ================= -->
   <section class="mode" id="mode-dictate">
     <div class="card">
-      <div class="meta"><span id="dProgress">Grab a pen and paper.</span><span class="live" id="dLive">Screen stays on</span></div>
+      <div class="seg" data-setting="nMode">
+        <button data-value="speak">🗣️ Speak</button>
+        <button data-value="dictate">🎧 Dictation</button>
+      </div>
       <button class="focus-pill" hidden></button>
+      <div class="meta" style="margin-top:12px"><span id="dProgress">Grab a pen and paper.</span><span class="live" id="dLive">Screen stays on</span></div>
       <div class="status" id="dStatus">Ready</div>
       <div class="typing" id="dTyping" hidden></div>
       <div class="controls">
@@ -812,7 +819,7 @@ const isScored = c => /[A-Z0-9]/.test(c);
 
 // ================= Settings (persisted) =================
 const DEFAULTS = {
-  mode: 'speak', theme: 'auto', adaptive: true,
+  mode: 'speak', nMode: 'speak', theme: 'auto', adaptive: true,
   sSource: 'random', sFormat: 'mixed', sLen: 5, sLenMax: 5, sTimer: 0, sDigits: false,
   dSource: 'random', dFormat: 'mixed', dLen: 5, dLenMax: 5, dCount: 5, dGap: 1.5, dRate: 0.9, dPause: 4,
   dStatic: 0, dVoice: '', dDigits: false, dAnnounce: true, dLadder: false, radioDigits: false, dAnswer: 'paper', focus: [], fMode: 'recall', pView: 'nato',
@@ -991,6 +998,7 @@ document.querySelectorAll('.seg').forEach(seg => {
     settings[key] = v; save(); render(); syncSourceFields();
     if (key === 'dAnswer') updateAnswerMode();
     if (key === 'fMode') nextFlag();
+    if (key === 'nMode') setMode(v);
     if (key === 'mMode' || key === 'mAnswer' || key === 'mDrill') renderMorse();
     if (key === 'mSource') syncMorseFields();
     if (key === 'mOutput') syncMorseFields();
@@ -1017,9 +1025,15 @@ $('themeBtn').addEventListener('click', () => {
 applyTheme();
 
 // ================= Tabs =================
+// Speak and Dictation share the NATO tab; settings.nMode remembers which one was open.
+const NATO_MODES = ['speak', 'dictate'];
 function setMode(mode) {
+  if (mode === 'nato') mode = settings.nMode;
+  if (NATO_MODES.includes(mode)) settings.nMode = mode;
   settings.mode = mode; save();
-  document.querySelectorAll('.tabs button').forEach(b => b.classList.toggle('active', b.dataset.mode === mode));
+  document.querySelectorAll('.tabs button').forEach(b =>
+    b.classList.toggle('active', b.dataset.mode === mode || (b.dataset.mode === 'nato' && NATO_MODES.includes(mode))));
+  document.querySelectorAll('.seg[data-setting="nMode"] button').forEach(b => b.classList.toggle('active', b.dataset.value === settings.nMode));
   document.querySelectorAll('section.mode').forEach(s => s.classList.toggle('active', s.id === 'mode-' + mode));
   if (mode !== 'dictate') stopDictation();
   if (mode !== 'morse' && typeof koch !== 'undefined') stopMorseAll();
