@@ -161,6 +161,20 @@
   .answer .chips { justify-content: flex-start; min-height: 0; }
   .answer .chip { background: var(--card); }
   .result { text-align: center; margin-top: 14px; font-weight: 500; min-height: 1.2em; }
+  .typing { display: grid; grid-template-columns: minmax(0, 1fr); gap: 8px; margin-top: 12px; }
+  .type-row { display: flex; align-items: center; gap: 10px; }
+  .type-row .num { color: var(--muted); min-width: 1.6em; text-align: right; }
+  .type-row input {
+    flex: 1; min-width: 0; padding: 10px 12px; border-radius: 10px; border: 1px solid var(--border);
+    background: var(--card2); color: var(--text); font: 1.15rem ui-monospace, Menlo, monospace;
+    letter-spacing: .12em; text-transform: uppercase;
+  }
+  .type-row input:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 25%, transparent); }
+  .type-row.current .num { color: var(--accent); font-weight: 700; }
+  .typed { font-family: ui-monospace, Menlo, monospace; color: var(--muted); font-size: .9rem; margin: -4px 0 10px; word-break: break-all; }
+  .typed span { color: var(--text); letter-spacing: .08em; }
+  .typed mark { background: color-mix(in srgb, var(--bad) 22%, transparent); color: var(--bad); border-radius: 3px; }
+  .typed em { color: var(--bad); font-style: normal; }
   .warn { background: var(--warn-bg); color: var(--warn-ink); padding: 10px 14px; border-radius: 12px; margin-bottom: 14px; display: none; }
 
   /* ---------- Progress ---------- */
@@ -254,6 +268,7 @@
     <div class="card">
       <div class="meta"><span id="dProgress">Grab a pen and paper.</span><span class="live" id="dLive">Screen stays on</span></div>
       <div class="status" id="dStatus">Ready</div>
+      <div class="typing" id="dTyping" hidden></div>
       <div class="controls">
         <button class="btn primary" id="dStartBtn">▶ Start</button>
         <button class="btn" id="dPauseBtn" disabled>⏸ Pause</button>
@@ -268,7 +283,7 @@
 
     <div class="card" id="dAnswersCard" hidden>
       <h2>Answers</h2>
-      <p class="muted small" style="margin-top:-6px">Tap every letter you got wrong, then save. Progress tracking and the speed ladder use this.</p>
+      <p class="muted small" style="margin-top:-6px" id="dAnswersHint"></p>
       <div class="answers" id="dAnswers"></div>
       <div class="actions"><button class="btn primary" id="dSaveBtn">✓ Save results</button></div>
       <div class="result" id="dResult"></div>
@@ -283,6 +298,13 @@
             <button data-value="random">Random</button>
             <button data-value="words">Words</button>
             <button data-value="formats">Formats</button>
+          </div>
+        </div>
+        <div class="field full">
+          <label>Answers</label>
+          <div class="seg" data-setting="dAnswer">
+            <button data-value="paper">✏️ On paper</button>
+            <button data-value="type">⌨️ Type in app</button>
           </div>
         </div>
         <div class="field full" data-when="formats">
@@ -486,7 +508,7 @@ const DEFAULTS = {
   mode: 'speak', theme: 'auto', adaptive: true,
   sSource: 'random', sFormat: 'mixed', sLen: 5, sLenMax: 5, sTimer: 0, sDigits: false,
   dSource: 'random', dFormat: 'mixed', dLen: 5, dLenMax: 5, dCount: 5, dGap: 1.5, dRate: 0.9, dPause: 4,
-  dStatic: 0, dVoice: '', dDigits: false, dAnnounce: true, dLadder: false, radioDigits: false,
+  dStatic: 0, dVoice: '', dDigits: false, dAnnounce: true, dLadder: false, radioDigits: false, dAnswer: 'paper',
 };
 const settings = { ...DEFAULTS, ...JSON.parse(localStorage.getItem('nato-settings') || '{}') };
 const save = () => localStorage.setItem('nato-settings', JSON.stringify(settings));
@@ -634,6 +656,7 @@ document.querySelectorAll('.seg').forEach(seg => {
     const v = e.target.closest('button')?.dataset.value;
     if (!v) return;
     settings[key] = v; save(); render(); syncSourceFields();
+    if (key === 'dAnswer') updateAnswerMode();
     if (key === 'sSource') nextWord();
   });
   render();
@@ -969,6 +992,7 @@ async function runDictation(set) {
   updateDictButtons();
   $('dAnswersCard').hidden = true;
   $('dAnswers').dataset.set = ''; // force a fresh, unmarked answer list
+  buildTypingRows(set.length);
   setStatus('Get ready…');
   setStatic(true);
   await dSleep(1200, runId);
@@ -978,6 +1002,7 @@ async function runDictation(set) {
   for (let i = 0; i < set.length; i++) {
     if (runId !== dRunId) return;
     $('dProgress').textContent = `String ${i + 1} of ${set.length}`;
+    advanceTypingRow(i);
     if (settings.dAnnounce) {
       setStatus(`Group ${i + 1}`);
       await say('g' + (i + 1), `Group ${i + 1}`);
@@ -1038,10 +1063,12 @@ function showAnswers() {
       <div class="answer" data-row="${i}">
         <div class="answer-head"><span class="num">${i + 1}.</span><span class="str">${s}</span>
           <button class="icon-btn" data-play="${i}" aria-label="Play">🔊</button></div>
+        <div class="typed" hidden></div>
         <div class="chips">${chipsHTML(s, i)}</div>
       </div>`).join('');
     $('dResult').textContent = '';
   }
+  if (typingMode() && !dSaved) markTypedAnswers();
   $('dAnswers').classList.toggle('locked', dSaved);
   $('dSaveBtn').disabled = dSaved;
   $('dAnswersCard').scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -1061,8 +1088,9 @@ function saveResults() {
     record(s, wrong);
     letters += [...s].filter(isScored).length;
     misses += wrong.size;
-    if (!wrong.size) perfect++;
-    gap *= wrong.size ? 1.15 : 0.9;
+    const ok = !wrong.size && row.dataset.extra !== '1'; // typed extra characters also count as a miss
+    if (ok) perfect++;
+    gap *= ok ? 0.9 : 1.15;
   });
   let msg = `${perfect}/${dSet.length} strings perfect · ${letters - misses}/${letters} letters`;
   if (settings.dLadder) {
@@ -1089,6 +1117,89 @@ $('dStopBtn').addEventListener('click', stopDictation);
 $('dPauseBtn').addEventListener('click', togglePause);
 $('dReplayBtn').addEventListener('click', () => runDictation(dSet));
 $('dRevealBtn').addEventListener('click', showAnswers);
+
+// ================= Typed answers =================
+const typingMode = () => settings.dAnswer === 'type';
+function updateAnswerMode() {
+  const typing = typingMode();
+  $('dRevealBtn').textContent = typing ? 'Check answers' : 'Show answers';
+  $('dAnswersHint').textContent = typing
+    ? 'Checked automatically. Tap a letter to change its mark, then save. Progress tracking and the speed ladder use this.'
+    : 'Tap every letter you got wrong, then save. Progress tracking and the speed ladder use this.';
+  if (!dRunning && !dSet.length) $('dProgress').textContent = typing ? 'Type what you hear.' : 'Grab a pen and paper.';
+  $('dTyping').hidden = !typing || !$('dTyping').children.length;
+}
+function buildTypingRows(n) {
+  $('dTyping').innerHTML = '';
+  if (!typingMode()) return updateAnswerMode();
+  for (let i = 0; i < n; i++) {
+    const row = document.createElement('div');
+    row.className = 'type-row';
+    row.innerHTML = `<span class="num">${i + 1}.</span><input type="text" autocomplete="off" autocorrect="off"
+      autocapitalize="characters" spellcheck="false" enterkeyhint="${i < n - 1 ? 'next' : 'done'}" aria-label="Answer ${i + 1}">`;
+    $('dTyping').append(row);
+  }
+  updateAnswerMode();
+  advanceTypingRow(0); // runs inside the Start tap, so iOS opens the keyboard
+}
+// Move to row i when its group starts, unless the user is busy in a later row.
+function advanceTypingRow(i) {
+  const rows = [...$('dTyping').children];
+  if (!rows[i]) return;
+  rows.forEach((r, k) => r.classList.toggle('current', k === i));
+  const active = rows.findIndex(r => r.contains(document.activeElement));
+  if (i === 0 || active === -1 || active < i) rows[i].querySelector('input').focus({ preventScroll: i === 0 });
+}
+$('dTyping').addEventListener('keydown', e => {
+  if (e.key !== 'Enter') return;
+  e.preventDefault();
+  const row = e.target.closest('.type-row');
+  const next = row.nextElementSibling?.querySelector('input');
+  next ? next.focus() : e.target.blur();
+});
+
+// Align what was typed with the expected string (spaces ignored) using edit distance,
+// so one missed letter doesn't make everything after it wrong.
+function alignAnswer(expected, typed) {
+  const E = [...expected].map((c, i) => [c, i]).filter(([c]) => c !== ' ');
+  const T = [...typed.toUpperCase()].filter(c => c.trim());
+  const n = E.length, m = T.length;
+  const D = Array.from({ length: n + 1 }, (_, i) => Array.from({ length: m + 1 }, (_, j) => i === 0 ? j : j === 0 ? i : 0));
+  for (let i = 1; i <= n; i++) for (let j = 1; j <= m; j++) {
+    D[i][j] = Math.min(D[i - 1][j - 1] + (E[i - 1][0] === T[j - 1] ? 0 : 1), D[i - 1][j] + 1, D[i][j - 1] + 1);
+  }
+  const wrong = new Set(), typedOk = Array(m).fill(false), missing = {}; // typed position -> count
+  let extra = 0, i = n, j = m;
+  while (i > 0 || j > 0) {
+    if (i > 0 && j > 0 && D[i][j] === D[i - 1][j - 1] + (E[i - 1][0] === T[j - 1] ? 0 : 1)) {
+      if (E[i - 1][0] === T[j - 1]) typedOk[j - 1] = true; else wrong.add(E[i - 1][1]);
+      i--; j--;
+    } else if (i > 0 && D[i][j] === D[i - 1][j] + 1) {
+      wrong.add(E[i - 1][1]); missing[j] = (missing[j] || 0) + 1; i--;
+    } else { extra++; j--; }
+  }
+  return { wrong, typed: T, typedOk, missing, extra };
+}
+const escapeHTML = t => t.replace(/[&<>"']/g, c => `&#${c.charCodeAt(0)};`);
+function markTypedAnswers() {
+  const inputs = [...$('dTyping').querySelectorAll('input')];
+  document.querySelectorAll('#dAnswers .answer').forEach(row => {
+    const i = +row.dataset.row, typed = inputs[i]?.value || '';
+    const a = alignAnswer(dSet[i], typed);
+    row.querySelectorAll('.chip').forEach(ch => ch.classList.toggle('wrong', a.wrong.has(+ch.dataset.i)));
+    row.dataset.extra = a.extra ? '1' : '';
+    // Show what was typed: wrong or extra characters highlighted, ▢ where a character is missing.
+    let html = '';
+    for (let k = 0; k <= a.typed.length; k++) {
+      html += '<em>▢</em>'.repeat(a.missing[k] || 0);
+      if (k < a.typed.length) html += a.typedOk[k] ? escapeHTML(a.typed[k]) : `<mark>${escapeHTML(a.typed[k])}</mark>`;
+    }
+    const el = row.querySelector('.typed');
+    el.hidden = false;
+    el.innerHTML = `You typed: <span>${html || '<em>(nothing)</em>'}</span>`;
+  });
+}
+updateAnswerMode();
 $('dSaveBtn').addEventListener('click', saveResults);
 
 // ================= Progress =================
