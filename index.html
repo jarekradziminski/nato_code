@@ -107,8 +107,12 @@
         </div>
       </div>
       <div class="field">
-        <label>Length <output id="sLenOut"></output></label>
+        <label>Min length <output id="sLenOut"></output></label>
         <input type="range" id="sLen" min="2" max="12" step="1">
+      </div>
+      <div class="field">
+        <label>Max length <output id="sLenMaxOut"></output></label>
+        <input type="range" id="sLenMax" min="2" max="12" step="1">
       </div>
       <div class="field">
         <label>Auto-reveal after <output id="sTimerOut"></output></label>
@@ -144,8 +148,12 @@
         </div>
       </div>
       <div class="field">
-        <label>String length <output id="dLenOut"></output></label>
+        <label>Min length <output id="dLenOut"></output></label>
         <input type="range" id="dLen" min="2" max="12" step="1">
+      </div>
+      <div class="field">
+        <label>Max length <output id="dLenMaxOut"></output></label>
+        <input type="range" id="dLenMax" min="2" max="12" step="1">
       </div>
       <div class="field">
         <label>Number of strings <output id="dCountOut"></output></label>
@@ -270,15 +278,15 @@ const natoDisplay = s => [...s].map(c => NATO[c].display);
 
 // ---------- Settings (persisted) ----------
 const DEFAULTS = {
-  sSource: 'random', sLen: 5, sTimer: 0, sDigits: false,
-  dSource: 'random', dLen: 5, dCount: 5, dGap: 1.5, dRate: 0.9, dPause: 4,
+  sSource: 'random', sLen: 5, sLenMax: 5, sTimer: 0, sDigits: false,
+  dSource: 'random', dLen: 5, dLenMax: 5, dCount: 5, dGap: 1.5, dRate: 0.9, dPause: 4,
   dVoice: '', dDigits: false, dAnnounce: true, mode: 'speak',
 };
 const settings = { ...DEFAULTS, ...JSON.parse(localStorage.getItem('nato-settings') || '{}') };
 const save = () => localStorage.setItem('nato-settings', JSON.stringify(settings));
 
 const fmt = {
-  sLen: v => v, dLen: v => v, dCount: v => v,
+  sLen: v => v, sLenMax: v => v, dLen: v => v, dLenMax: v => v, dCount: v => v,
   sTimer: v => +v === 0 ? 'off' : v + ' s',
   dGap: v => (+v).toFixed(1) + ' s',
   dPause: v => (+v).toFixed(1) + ' s',
@@ -313,7 +321,17 @@ function syncDigitToggles() {
   $('dDigits').disabled = settings.dSource === 'words';
 }
 syncDigitToggles();
+// Keep min <= max: dragging one past the other pushes the other along.
+function linkRange(minId, maxId) {
+  const set = (id, v) => { settings[id] = v; $(id).value = v; $(id + 'Out').textContent = v; };
+  $(minId).addEventListener('input', () => { if (settings[minId] > settings[maxId]) set(maxId, settings[minId]); save(); });
+  $(maxId).addEventListener('input', () => { if (settings[maxId] < settings[minId]) set(minId, settings[maxId]); save(); });
+}
+linkRange('sLen', 'sLenMax');
+linkRange('dLen', 'dLenMax');
+const randLen = (min, max) => min + rand(max - min + 1);
 $('sLen').addEventListener('change', nextWord);
+$('sLenMax').addEventListener('change', nextWord);
 $('sDigits').addEventListener('change', nextWord);
 
 // ---------- Tabs ----------
@@ -358,7 +376,7 @@ function speak(text) {
 let sCurrent = '', sCount = 0, sRevealed = false, sTimerId = null, sTimerStart = 0;
 
 function nextWord() {
-  sCurrent = generate(settings.sLen, settings.sSource, settings.sDigits);
+  sCurrent = generate(randLen(settings.sLen, settings.sLenMax), settings.sSource, settings.sDigits);
   sCount++;
   sRevealed = false;
   $('sWord').textContent = sCurrent;
@@ -454,7 +472,7 @@ async function runDictation(set) {
 }
 
 function startDictation() {
-  const set = Array.from({ length: settings.dCount }, () => generate(settings.dLen, settings.dSource, settings.dDigits));
+  const set = Array.from({ length: settings.dCount }, () => generate(randLen(settings.dLen, settings.dLenMax), settings.dSource, settings.dDigits));
   runDictation(set);
 }
 function stopDictation() {
