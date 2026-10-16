@@ -119,9 +119,52 @@
   kbd { background: var(--card2); border: 1px solid var(--border); border-radius: 5px; padding: 1px 6px; font-size: .78rem; font-family: inherit; }
   .hint { text-align: center; color: var(--muted); font-size: .8rem; margin-top: 12px; }
   @media (hover: none) { .kbd-only { display: none; } }
+  /* ---------- Flags ---------- */
+  .flag { display: block; filter: drop-shadow(0 0 1px rgb(0 0 0 / .8)); }
+  .flag-stage { display: grid; place-items: center; gap: 14px; padding: 22px 0 6px; }
+  .flag-stage .flag { width: min(46vw, 170px); height: auto; }
+  .flag-answer { text-align: center; min-height: 96px; }
+  .flag-answer .name { font-size: 1.7rem; font-weight: 700; }
+  .flag-answer .name b { color: var(--accent); font-family: ui-monospace, Menlo, monospace; margin-right: 8px; }
+  .meaning-short { font-size: 1.15rem; font-weight: 600; margin-top: 6px; }
+  .meaning-full { color: var(--muted); font-size: .9rem; margin-top: 4px; }
+  .meaning-alt { color: var(--muted); font-size: .85rem; font-style: italic; margin-top: 4px; }
+  .prompt { text-align: center; font-size: 1.35rem; font-weight: 600; padding: 26px 8px 10px; line-height: 1.3; }
+  .options { display: grid; gap: 10px; margin-top: 14px; }
+  .options.flags { grid-template-columns: repeat(2, minmax(0, 1fr)); max-width: 380px; margin-inline: auto; }
+  .option {
+    border: 2px solid var(--border); background: var(--card2); color: var(--text); border-radius: 12px;
+    padding: 12px; cursor: pointer; text-align: left; font-size: 1rem; display: grid; place-items: center; gap: 6px;
+  }
+  .options:not(.flags) .option { place-items: start; }
+  .option .flag { width: 100%; max-width: 130px; height: auto; }
+  .option small { color: var(--muted); min-height: 1.2em; }
+  .option.correct { border-color: var(--good); background: color-mix(in srgb, var(--good) 14%, var(--card)); }
+  .option.wrong { border-color: var(--bad); background: color-mix(in srgb, var(--bad) 14%, var(--card)); }
+  .options.answered .option { cursor: default; }
+  .hoist { display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 18px 0 6px; }
+  .hoist .flag { width: 92px; height: auto; }
+  .flag-ref { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 10px; margin-top: 14px; }
+  .flag-ref > div { display: grid; grid-template-columns: 56px 1fr; gap: 12px; align-items: start; background: var(--card2); border-radius: 12px; padding: 10px; }
+  .flag-ref .flag { width: 56px; height: auto; }
+  .flag-ref .name b { color: var(--accent); font-family: ui-monospace, Menlo, monospace; margin-right: 6px; }
+  .flag-ref .meaning-short { font-size: .95rem; margin-top: 2px; }
+  .cell .flag { width: 26px; height: auto; float: right; }
+  .tabs button { display: flex; align-items: center; justify-content: center; gap: 6px; white-space: nowrap; }
+  .seg button { white-space: nowrap; }
+  @media (max-width: 430px) {
+    .tabs button { flex-direction: column; gap: 1px; padding: 7px 2px; font-size: .78rem; }
+    .tabs button span { font-size: 1.15rem; }
+    .seg button { font-size: .88rem; padding: 8px 2px; }
+    .options.flags { max-width: 300px; }
+    .option .flag { max-width: 100px; }
+    .hoist .flag { width: 74px; }
+    .flag-stage .flag { width: min(40vw, 150px); }
+  }
+
 
   /* ---------- Stage (speak mode) ---------- */
-  .meta { display: flex; justify-content: space-between; gap: 10px; color: var(--muted); font-size: .85rem; }
+  .meta { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 4px 10px; color: var(--muted); font-size: .85rem; }
   .word {
     font-size: clamp(2rem, 9vw, 4.2rem); font-weight: 700; letter-spacing: .14em;
     text-align: center; padding: 28px 0 18px; font-family: ui-monospace, "SF Mono", Menlo, monospace;
@@ -237,9 +280,10 @@
     <button class="icon-btn" id="themeBtn" aria-label="Toggle theme"></button>
   </div>
   <nav class="tabs">
-    <button data-mode="speak">🗣️ Speak</button>
-    <button data-mode="dictate">🎧 Dictation</button>
-    <button data-mode="progress">📊 Progress</button>
+    <button data-mode="speak"><span>🗣️</span>Speak</button>
+    <button data-mode="dictate"><span>🎧</span>Dictation</button>
+    <button data-mode="flags"><span>🚩</span>Flags</button>
+    <button data-mode="progress"><span>📊</span>Progress</button>
   </nav>
 </header>
 
@@ -390,9 +434,37 @@
     </details>
   </section>
 
+  <!-- ================= FLAGS ================= -->
+  <section class="mode" id="mode-flags">
+    <div class="card">
+      <div class="seg" data-setting="fMode">
+        <button data-value="recall">Recall</button>
+        <button data-value="find">Find flag</button>
+        <button data-value="meaning">Meaning</button>
+        <button data-value="hoist">Hoist</button>
+      </div>
+      <button class="focus-pill" hidden></button>
+      <div class="meta" style="margin-top:12px"><span id="fCounter"></span><span id="fSession"></span></div>
+      <div id="fStage"></div>
+      <div class="actions" id="fActions"></div>
+      <div class="hint kbd-only" id="fHint"></div>
+    </div>
+    <details class="card">
+      <summary>🚩 Signal flag reference</summary>
+      <div class="flag-ref" id="fRef"></div>
+      <p class="muted small" style="margin:14px 0 0">Meanings: International Code of Signals (IMO, 2005 edition), single-letter signals, as quoted on
+        <a href="https://en.wikipedia.org/wiki/International_maritime_signal_flags" style="color:inherit">Wikipedia</a>.
+        Flag artwork: Wikimedia Commons (public domain).</p>
+    </details>
+  </section>
+
   <!-- ================= PROGRESS ================= -->
   <section class="mode" id="mode-progress">
     <div class="card">
+      <div class="seg" data-setting="pView" style="margin-bottom:14px">
+        <button data-value="nato">🗣️ NATO letters</button>
+        <button data-value="flags">🚩 Signal flags</button>
+      </div>
       <div class="stat-row" id="pStats"></div>
       <div style="margin-top:16px">
         <label class="check"><input type="checkbox" id="adaptive"> Practise weak letters more often</label>
@@ -405,7 +477,7 @@
     </div>
     <div class="card">
       <div class="card-head">
-        <h2>Per-letter accuracy</h2>
+        <h2 id="pGridTitle">Per-letter accuracy</h2>
         <div style="display:flex;gap:6px">
           <button class="btn sm" id="pFocusWeak">🎯 Weakest 5</button>
           <button class="btn sm" id="pFocusClear">Clear focus</button>
@@ -555,7 +627,7 @@ const DEFAULTS = {
   mode: 'speak', theme: 'auto', adaptive: true,
   sSource: 'random', sFormat: 'mixed', sLen: 5, sLenMax: 5, sTimer: 0, sDigits: false,
   dSource: 'random', dFormat: 'mixed', dLen: 5, dLenMax: 5, dCount: 5, dGap: 1.5, dRate: 0.9, dPause: 4,
-  dStatic: 0, dVoice: '', dDigits: false, dAnnounce: true, dLadder: false, radioDigits: false, dAnswer: 'paper', focus: [],
+  dStatic: 0, dVoice: '', dDigits: false, dAnnounce: true, dLadder: false, radioDigits: false, dAnswer: 'paper', focus: [], fMode: 'recall', pView: 'nato',
 };
 const settings = { ...DEFAULTS, ...JSON.parse(localStorage.getItem('nato-settings') || '{}') };
 const save = () => localStorage.setItem('nato-settings', JSON.stringify(settings));
@@ -723,6 +795,8 @@ document.querySelectorAll('.seg').forEach(seg => {
     if (!v) return;
     settings[key] = v; save(); render(); syncSourceFields();
     if (key === 'dAnswer') updateAnswerMode();
+    if (key === 'fMode') nextFlag();
+    if (key === 'pView') renderProgress();
     if (key === 'sSource') nextWord();
   });
   render();
@@ -1274,13 +1348,14 @@ function renderProgress() {
   renderGrid();
 }
 function streaks() {
-  const has = d => history[dayKey(d)]?.n > 0;
+  const practised = h => h && (h.n || 0) + (h.fn || 0) > 0;
+  const has = d => practised(history[dayKey(d)]);
   const d = new Date();
   if (!has(d)) d.setDate(d.getDate() - 1); // today not practised yet: streak still alive
   let current = 0;
   while (has(d)) { current++; d.setDate(d.getDate() - 1); }
   let best = 0, run = 0, prev = null;
-  for (const k of Object.keys(history).filter(k => history[k].n > 0).sort()) {
+  for (const k of Object.keys(history).filter(k => practised(history[k])).sort()) {
     const [y, m, dd] = k.split('-').map(Number), t = new Date(y, m - 1, dd);
     run = prev && Math.round((t - prev) / 864e5) === 1 ? run + 1 : 1;
     best = Math.max(best, run); prev = t;
@@ -1288,14 +1363,16 @@ function streaks() {
   return { current, best };
 }
 function renderGrid() {
-  const chars = [...LETTERS, ...DIGITS];
-  const seen = chars.reduce((a, c) => a + (stats[c]?.seen || 0), 0);
-  const wrong = chars.reduce((a, c) => a + (stats[c]?.wrong || 0), 0);
-  const weakest = chars.filter(c => stats[c]?.seen >= 3 && stats[c].wrong)
-    .sort((a, b) => stats[b].wrong / stats[b].seen - stats[a].wrong / stats[a].seen).slice(0, 4);
+  const flagsView = settings.pView === 'flags', src = flagsView ? flagStats : stats;
+  const chars = flagsView ? [...LETTERS] : [...LETTERS, ...DIGITS];
+  const seen = chars.reduce((a, c) => a + (src[c]?.seen || 0), 0);
+  const wrong = chars.reduce((a, c) => a + (src[c]?.wrong || 0), 0);
+  const weakest = chars.filter(c => src[c]?.seen >= 3 && src[c].wrong)
+    .sort((a, b) => src[b].wrong / src[b].seen - src[a].wrong / src[a].seen).slice(0, 4);
   const st = streaks();
+  $('pGridTitle').textContent = flagsView ? 'Per-flag accuracy' : 'Per-letter accuracy';
   $('pStats').innerHTML = `
-    <div class="stat"><b>${seen.toLocaleString()}</b><span>letters scored</span></div>
+    <div class="stat"><b>${seen.toLocaleString()}</b><span>${flagsView ? 'flags answered' : 'letters scored'}</span></div>
     <div class="stat"><b>${seen ? Math.round(100 * (1 - wrong / seen)) + '%' : '–'}</b><span>accuracy</span></div>
     <div class="stat"><b>${st.current ? '🔥 ' + st.current : '–'}</b><span>day streak${st.best > st.current ? ` · best ${st.best}` : ''}</span></div>
     <div class="stat"><b>${weakest.join(' ') || '–'}</b><span>weakest</span></div>`;
@@ -1305,14 +1382,14 @@ function renderGrid() {
     : 'Tap letters to focus practice on them.';
   $('pFocusClear').disabled = !focus.length;
   $('pGrid').innerHTML = chars.map(c => {
-    const s = stats[c], f = focus.includes(c) ? ' focused' : '';
-    const label = `aria-pressed="${!!f}" data-c="${c}"`;
-    if (!s?.seen) return `<button class="cell unseen${f}" ${label}><b>${c}</b><span class="name">${nato(c).display}</span><small>not yet</small></button>`;
+    const s = src[c], f = focus.includes(c) ? ' focused' : '';
+    const label = `aria-pressed="${!!f}" data-c="${c}"`, pic = flagsView ? flagSVG(c) : '';
+    if (!s?.seen) return `<button class="cell unseen${f}" ${label}>${pic}<b>${c}</b><span class="name">${nato(c).display}</span><small>not yet</small></button>`;
     const r = s.wrong / s.seen;
     const bg = r === 0
       ? 'color-mix(in srgb, var(--good) 18%, var(--card2))'
       : `color-mix(in srgb, var(--bad) ${Math.round(Math.min(45, 12 + r * 80))}%, var(--card2))`;
-    return `<button class="cell${f}" ${label} style="background:${bg}"><b>${c}</b><span class="name">${nato(c).display}</span>
+    return `<button class="cell${f}" ${label} style="background:${bg}">${pic}<b>${c}</b><span class="name">${nato(c).display}</span>
       <small>${Math.round(100 * (1 - r))}% · ${s.seen}×</small></button>`;
   }).join('');
 }
@@ -1338,9 +1415,10 @@ $('pGrid').addEventListener('click', e => {
 $('pFocusClear').addEventListener('click', () => setFocus([]));
 $('pFocusWeak').addEventListener('click', () => {
   // Letters actually missed first (highest error rate), then the least-practised letters.
-  const missed = [...LETTERS].filter(c => stats[c]?.wrong)
-    .sort((a, b) => stats[b].wrong / stats[b].seen - stats[a].wrong / stats[a].seen);
-  const rest = [...LETTERS].filter(c => !missed.includes(c)).sort((a, b) => (stats[a]?.seen || 0) - (stats[b]?.seen || 0));
+  const src = settings.pView === 'flags' ? flagStats : stats;
+  const missed = [...LETTERS].filter(c => src[c]?.wrong)
+    .sort((a, b) => src[b].wrong / src[b].seen - src[a].wrong / src[a].seen);
+  const rest = [...LETTERS].filter(c => !missed.includes(c)).sort((a, b) => (src[a]?.seen || 0) - (src[b]?.seen || 0));
   setFocus([...missed, ...rest].slice(0, 5));
 });
 updateFocusUI();
@@ -1349,8 +1427,9 @@ updateFocusUI();
 function last30() {
   return Array.from({ length: 30 }, (_, i) => {
     const d = new Date(); d.setHours(12, 0, 0, 0); d.setDate(d.getDate() - 29 + i);
-    const h = history[dayKey(d)] || { n: 0, wrong: 0 };
-    return { date: d, n: h.n, acc: h.n ? 1 - h.wrong / h.n : null };
+    const h = history[dayKey(d)] || {};
+    const [n, wrong] = settings.pView === 'flags' ? [h.fn || 0, h.fw || 0] : [h.n || 0, h.wrong || 0];
+    return { date: d, n, acc: n ? 1 - wrong / n : null };
   });
 }
 const fmtDay = d => d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
@@ -1392,21 +1471,23 @@ function chartFrame(el, days, ticks, yOf, tickLabel, marks, tip) {
   el.onpointermove = el.onpointerdown = show;
   el.onpointerleave = () => { tipEl.hidden = true; el.querySelectorAll('.hover-band.on').forEach(b => b.classList.remove('on')); };
 }
-const dayTip = d => `<b>${fmtDayLong(d.date)}</b>${d.n ? `${d.n} letters · ${Math.round(d.acc * 100)}% accuracy` : 'No practice'}`;
+const dayTip = d => `<b>${fmtDayLong(d.date)}</b>${d.n ? `${d.n} ${settings.pView === 'flags' ? 'flags' : 'letters'} · ${Math.round(d.acc * 100)}% accuracy` : 'No practice'}`;
 
 function renderHistory() {
   const days = last30();
   if (!days.some(d => d.n)) {
-    $('pHistory').innerHTML = '<p class="muted small" style="margin:0">Your daily history appears here once you mark answers (Speak: reveal, then Next; Dictation: Save results).</p>';
+    $('pHistory').innerHTML = `<p class="muted small" style="margin:0">${settings.pView === 'flags'
+      ? 'Your daily flag history appears here once you answer flags in the Flags tab.'
+      : 'Your daily history appears here once you mark answers (Speak: reveal, then Next; Dictation: Save results).'}</p>`;
     return;
   }
   $('pHistory').innerHTML = `
-    <p class="chart-title">Letters practised</p><p class="chart-sub">per day</p>
+    <p class="chart-title">${settings.pView === 'flags' ? 'Flags answered' : 'Letters practised'}</p><p class="chart-sub">per day</p>
     <div class="chart-wrap" id="pVolume"></div>
     <p class="chart-title">Accuracy</p><p class="chart-sub">share of letters right, on days you practised</p>
     <div class="chart-wrap" id="pAccuracy"></div>
     <details class="inline"><summary>Show as table</summary>
-      <table class="history-table"><thead><tr><th>Day</th><th>Letters</th><th>Accuracy</th></tr></thead><tbody>
+      <table class="history-table"><thead><tr><th>Day</th><th>${settings.pView === 'flags' ? 'Flags' : 'Letters'}</th><th>Accuracy</th></tr></thead><tbody>
       ${days.filter(d => d.n).reverse().map(d => `<tr><td>${fmtDayLong(d.date)}</td><td>${d.n}</td><td>${Math.round(d.acc * 100)}%</td></tr>`).join('')}
       </tbody></table></details>`;
 
@@ -1439,7 +1520,8 @@ window.addEventListener('resize', () => {
 });
 $('pReset').addEventListener('click', () => {
   if (!confirm('Reset all progress? This clears per-letter accuracy and your daily history.')) return;
-  stats = {}; saveStats(); history = {}; saveHistory(); sessionLetters = sessionMisses = 0; renderProgress();
+  stats = {}; saveStats(); history = {}; saveHistory();
+  flagStats = {}; localStorage.removeItem('nato-flagstats'); sessionLetters = sessionMisses = 0; renderProgress();
 });
 
 // ================= Keyboard =================
@@ -1451,6 +1533,8 @@ document.addEventListener('keydown', e => {
     if (e.key === ' ') { e.preventDefault(); revealWord(); }
     else if (e.key === 'Enter' || e.key === 'ArrowRight') { e.preventDefault(); nextWord(); }
     else if (k === 'h') hearWord();
+  } else if (settings.mode === 'flags') {
+    flagKey(e);
   } else if (settings.mode === 'dictate') {
     if (k === 's' && !dRunning) startDictation();
     else if (k === 'p') togglePause();
@@ -1463,8 +1547,225 @@ document.addEventListener('keydown', e => {
 const renderRef = () => { $('ref').innerHTML = [...LETTERS, ...DIGITS].map(k => `<div><b>${k}</b>${nato(k).display}</div>`).join(''); };
 renderRef();
 
+// ================= Signal flags =================
+// Artwork: Wikimedia Commons "ICS <name>.svg" (public domain), recoloured. [viewBox, markup]
+const FLAG_SVG = {
+  A: ["0 0 600 600", "<path d=\"M1.25,1.25h597.5l-148.75,298.75l148.75,298.75h-597.5z\" fill=\"#fff\"/> <path d=\"M300,1.25h297.5l-148.75,298.75l148.75,298.75h-297.5z\" fill=\"#1d4ea3\"/> <path d=\"M1.25,1.25h597.5l-148.75,298.75l148.75,298.75h-597.5z\" fill=\"none\" stroke=\"#000\" stroke-width=\"2.5\"/>"],
+  B: ["0 0 600 600", "<path fill=\"#d7262e\" stroke=\"#000\" stroke-width=\"2\" d=\"M448,300 596,599H1V1H596z\"/>"],
+  C: ["0 0 5 5", "<path d=\"M0,0h5v5h-5z\" fill=\"#1d4ea3\"/> <path d=\"M0,1h5v3h-5z\" fill=\"#fff\"/> <path d=\"M0,2h5v1h-5z\" fill=\"#d7262e\"/>"],
+  D: ["0 0 600 600", "<rect fill=\"#ffcd00\" width=\"600\" height=\"600\" /> <rect fill=\"#1d4ea3\" y=\"120\" width=\"600\" height=\"360\" />"],
+  E: ["0 0 600 600", "<rect x=\"0\" y=\"0\" width=\"600\" height=\"300\" fill=\"#1d4ea3\" /> <rect x=\"0\" y=\"300\" width=\"600\" height=\"300\" id=\"a\" fill=\"#d7262e\" />"],
+  F: ["0 0 4 4", "<path d=\"M0,0h4v4h-4z\" fill=\"#fff\" stroke=\"#000\" stroke-width=\".017\"/> <path d=\"M2,0l2,2l-2,2l-2,-2\" fill=\"#d7262e\"/>"],
+  G: ["0 0 6 6", "<path d=\"M0,0h6v6h-6z\" fill=\"#ffcd00\"/> <path d=\"M1,0v6h1v-6h1v6h1v-6h1v6h1v-6z\" fill=\"#1d4ea3\"/>"],
+  H: ["0 0 600 600", "<path fill=\"#d7262e\" d=\"m1,0h599v600H1\"/> <path fill=\"#FFF\" d=\"m0,0h300v600H0\"/>"],
+  I: ["0 0 600 600", "<path fill=\"#ffcd00\" d=\"m0,0h600v600H0\" stroke=\"#000\" stroke-width=\"2\"/> <circle r=\"150\" cx=\"300\" cy=\"300\"/>"],
+  J: ["0 0 600 600", "<rect x=\"0\" y=\"0\" width=\"600\" height=\"600\" fill=\"#1d4ea3\" /> <rect x=\"0\" y=\"200\" width=\"600\" height=\"200\" fill=\"white\" />"],
+  K: ["0 0 2 2", "<path d=\"M0,0h1v2H0z\" fill=\"#ffcd00\"/> <path d=\"M1,0h1v2H1z\" fill=\"#1d4ea3\"/>"],
+  L: ["0 0 2 2", "<path d=\"M0,0h2v2h-2z\" fill=\"#ffcd00\"/> <path d=\"M0,1h2v-1h-1v2h-1z\"/>"],
+  M: ["0 0 600 600", "<rect fill=\"#1d4ea3\" width=\"600\" height=\"600\"/> <g stroke=\"#fff\" stroke-width=\"105px\"> <path d=\"M 0,0 L 600,600 z\"/> <path d=\"M 0,600 L 600,0 z\"/> <rect fill=\"none\" width=\"600\" height=\"600\" stroke=\"#000\" stroke-width=\"2px\"/> </g>"],
+  N: ["0 0 4 4", "<path d=\"M0,0h4v4H0z\" fill=\"#fff\"/> <path d=\"M0,3v-3h1v4h1v-4h1v4h1v-3h-4v1h4v1z\" fill=\"#1d4ea3\"/>"],
+  O: ["0 0 1 1", "<path d=\"M0,0h1v1h-1z\" fill=\"#d7262e\"/> <path d=\"M0,0v1h1z\" fill=\"#ffcd00\"/>"],
+  P: ["0 0 3 3", "<path d=\"M0,0h3v3h-3\" fill=\"#1d4ea3\"/> <path d=\"M1,1h1v1h-1\" fill=\"#fff\"/>"],
+  Q: ["0 0 600 600", "<rect fill=\"#ffcd00\" x=\"0\" y=\"0\" width=\"600\" height=\"600\" />"],
+  R: ["0 0 5 5", "<path d=\"M0,0h5v5h-5z\" fill=\"#d7262e\"/> <path d=\"M2,0h1v2h2v1h-2v2h-1v-2h-2v-1h2z\" fill=\"#ffcd00\"/>"],
+  S: ["0 0 3 3", "<path d=\"M0,0h3v3h-3z\" fill=\"#fff\" stroke=\"#000\" stroke-width=\".0125\"/> <path d=\"M1,1h1v1h-1z\" fill=\"#1d4ea3\"/>"],
+  T: ["0 0 600 600", "<rect x=\"0\" y=\"0\" width=\"200\" height=\"600\" fill=\"#d7262e\" /> <rect x=\"200\" y=\"0\" width=\"200\" height=\"600\" fill=\"white\" /> <rect x=\"400\" y=\"0\" width=\"200\" height=\"600\" fill=\"#1d4ea3\" />"],
+  U: ["0 0 2 2", "<path d=\"M0,0h2v2h-2z\" fill=\"#d7262e\"/> <path d=\"M0,1h2v-1h-1v2h-1z\" fill=\"#fff\"/>"],
+  V: ["0 0 600 600", "<rect fill=\"#fff\" width=\"600\" height=\"600\"/> <g stroke=\"#d7262e\" stroke-width=\"105px\"> <path d=\"M 0,0 L 600,600 z\"/> <path d=\"M 0,600 L 600,0 z\"/> <rect fill=\"none\" width=\"600\" height=\"600\" stroke=\"#000\" stroke-width=\"2px\"/> </g>"],
+  W: ["0 0 600 600", "<rect width=\"600\" height=\"600\" fill=\"#1d4ea3\" stroke=\"#000\" stroke-width=\"2.5\"/> <rect x=\"120\" y=\"120\" width=\"360\" height=\"360\" fill=\"#fff\"/> <rect x=\"240\" y=\"240\" width=\"120\" height=\"120\" fill=\"#d7262e\"/>"],
+  X: ["0 0 5 5", "<path d=\"M0,0h5v5h-5z\" fill=\"#fff\"/> <path d=\"M2,0h1v2h2v1h-2v2h-1v-2h-2v-1h2z\" fill=\"#1d4ea3\"/> <path d=\"M0,0h5v5h-5z\" fill=\"none\" stroke=\"#000\" stroke-width=\".02\"/>"],
+  Y: ["0 0 600 600", "<rect fill=\"#d7262e\" width=\"600\" height=\"600\"/> <path stroke=\"#ffcd00\" stroke-width=\"850\" stroke-dasharray=\"84,86\" d=\"M0,0 600,600\"/> <path fill=\"none\" stroke=\"#000\" stroke-width=\"2.5\" d=\"M0,0H600V600H0z\"/>"],
+  Z: ["0 0 2 2", "<path d=\"M0,0h2v2h-2z\" fill=\"#ffcd00\"/> <path d=\"M0,0l1,1l-1,1z\"/> <path d=\"M0,2l1,-1l1,1z\" fill=\"#d7262e\"/> <path d=\"M2,2l-1,-1l1,-1z\" fill=\"#1d4ea3\"/>"]
+};
+// Single-letter meanings, International Code of Signals (2005). `short` is a learning aid.
+const FLAG_MEANING = {
+  A: { short: 'Diver down: keep clear', full: 'I have a diver down; keep well clear at slow speed.' },
+  B: { short: 'Dangerous goods', full: 'I am taking in or discharging or carrying dangerous goods.' },
+  C: { short: 'Yes (affirmative)', full: 'Affirmative.' },
+  D: { short: 'Keep clear: manoeuvring with difficulty', full: 'Keep clear of me; I am maneuvering with difficulty.' },
+  E: { short: 'Altering course to starboard', full: 'I am altering my course to starboard.' },
+  F: { short: 'I am disabled', full: 'I am disabled; communicate with me.' },
+  G: { short: 'I require a pilot', full: 'I require a pilot.', alt: 'By fishing vessels near fishing grounds: "I am hauling nets."' },
+  H: { short: 'Pilot on board', full: 'I have a pilot on board.' },
+  I: { short: 'Altering course to port', full: 'I am altering my course to port.' },
+  J: { short: 'On fire with dangerous cargo: keep clear', full: 'I am on fire and have dangerous cargo on board: keep well clear of me. Or: I am leaking dangerous cargo.' },
+  K: { short: 'I wish to communicate', full: 'I wish to communicate with you.' },
+  L: { short: 'Stop immediately', full: 'Stop immediately.' },
+  M: { short: 'My vessel is stopped', full: 'My vessel is stopped and making no way through the water.' },
+  N: { short: 'No (negative)', full: 'Negative.' },
+  O: { short: 'Man overboard', full: 'Man overboard.' },
+  P: { short: 'About to sail (Blue Peter)', full: 'In harbour: all persons should report on board as the vessel is about to proceed to sea.', alt: 'At sea, by fishing vessels: "My nets have come fast upon an obstruction."' },
+  Q: { short: 'Healthy: request free pratique', full: 'My vessel is "healthy" and I request free pratique.' },
+  R: { short: null, full: 'No meaning as a single flag.', alt: 'Before 1969: "The way is off my ship; you may feel your way past me."' },
+  S: { short: 'Operating astern propulsion', full: 'I am operating astern propulsion.' },
+  T: { short: 'Keep clear of me', full: 'Keep clear of me.', alt: 'Fishing boats: "Keep clear of me; I am engaged in pair trawling."' },
+  U: { short: 'You are running into danger', full: 'You are running into danger.' },
+  V: { short: 'I require assistance', full: 'I require assistance.' },
+  W: { short: 'I require medical assistance', full: 'I require medical assistance.' },
+  X: { short: 'Stop: watch for my signals', full: 'Stop carrying out your intentions and watch for my signals.' },
+  Y: { short: 'I am dragging my anchor', full: 'I am dragging my anchor.' },
+  Z: { short: 'I require a tug', full: 'I require a tug.', alt: 'By fishing vessels near fishing grounds: "I am shooting nets."' },
+};
+const HAS_MEANING = [...LETTERS].filter(c => FLAG_MEANING[c].short);
+const flagSVG = c => `<svg class="flag" viewBox="${FLAG_SVG[c][0]}" role="img" aria-label="Signal flag">${FLAG_SVG[c][1]}</svg>`;
+const meaningHTML = c => {
+  const m = FLAG_MEANING[c];
+  return (m.short ? `<div class="meaning-short">${m.short}</div><div class="meaning-full">“${m.full}”</div>`
+    : `<div class="meaning-short">${m.full}</div>`) + (m.alt ? `<div class="meaning-alt">${m.alt}</div>` : '');
+};
+
+// Flag stats are kept apart from NATO letter stats: recognising a flag is a different skill.
+let flagStats = JSON.parse(localStorage.getItem('nato-flagstats') || '{}');
+function recordFlag(c, ok) {
+  const s = flagStats[c] ??= { seen: 0, wrong: 0 };
+  s.seen++; if (!ok) s.wrong++;
+  localStorage.setItem('nato-flagstats', JSON.stringify(flagStats));
+  const day = history[dayKey(new Date())] ??= { n: 0, wrong: 0 };
+  day.fn = (day.fn || 0) + 1; if (!ok) day.fw = (day.fw || 0) + 1;
+  saveHistory();
+  fSession.n++; if (ok) fSession.ok++;
+}
+function flagWeight(c) {
+  const s = flagStats[c] || { seen: 0, wrong: 0 };
+  return 1 + 8 * (s.wrong + 0.2) / (s.seen + 2);
+}
+// Next target flag: focus letters narrow the pool; weak flags come up more often.
+function pickFlag(pool, avoid) {
+  let p = pool.filter(c => settings.focus.includes(c));
+  if (!p.length) p = pool;
+  if (p.length > 1) p = p.filter(c => c !== avoid);
+  return settings.adaptive ? weightedChoice(p, flagWeight) : p[rand(p.length)];
+}
+const shuffle = a => { for (let i = a.length - 1; i > 0; i--) { const j = rand(i + 1); [a[i], a[j]] = [a[j], a[i]]; } return a; };
+function optionsFor(target, pool) {
+  return shuffle([target, ...shuffle(pool.filter(c => c !== target)).slice(0, 3)]);
+}
+
+// A real hoist can't repeat a flag without substitute pennants, so use strings with unique letters.
+function makeHoist() {
+  const unique = w => new Set(w).size === w.length;
+  let pool = WORDS.filter(w => w.length >= 3 && w.length <= 5 && unique(w));
+  const focused = pool.filter(w => [...w].some(c => settings.focus.includes(c)));
+  if (focused.length) pool = focused;
+  if (Math.random() < 0.5) return pool[rand(pool.length)];
+  const letters = shuffle([...focusPool(LETTERS)]);
+  const extra = shuffle([...LETTERS].filter(c => !letters.includes(c)));
+  return [...letters, ...extra].slice(0, 3 + rand(3)).join('');
+}
+
+let fItem = null, fSession = { n: 0, ok: 0 };
+const fButtons = html => { $('fActions').innerHTML = html; };
+function fMeta() {
+  $('fSession').textContent = fSession.n ? `Session: ${fSession.ok}/${fSession.n} correct` : '';
+}
+
+function nextFlag() {
+  const mode = settings.fMode, prev = fItem?.target;
+  $('fCounter').textContent = { recall: 'What flag is this, and what does it mean?', find: 'Which flag means…', meaning: 'What does this flag mean?', hoist: 'Read the hoist, top to bottom' }[mode];
+  fMeta();
+  if (mode === 'recall') {
+    const c = pickFlag([...LETTERS], prev);
+    fItem = { mode, target: c, revealed: false };
+    $('fStage').innerHTML = `<div class="flag-stage">${flagSVG(c)}<div class="flag-answer" id="fAnswer"></div></div>`;
+    fButtons('<button class="btn primary" id="fReveal">Reveal</button>');
+    $('fHint').innerHTML = '<kbd>Space</kbd> reveal · <kbd>Enter</kbd> knew it · <kbd>X</kbd> missed';
+  } else if (mode === 'find' || mode === 'meaning') {
+    const c = pickFlag(HAS_MEANING, prev);
+    const opts = optionsFor(c, HAS_MEANING);
+    fItem = { mode, target: c, answered: false };
+    if (mode === 'find') {
+      $('fStage').innerHTML = `<div class="prompt">“${FLAG_MEANING[c].short}”</div>
+        <div class="options flags" id="fOptions">${opts.map((o, i) => `<button class="option" data-c="${o}">${flagSVG(o)}<small></small></button>`).join('')}</div>
+        <div class="flag-answer" id="fAnswer" style="min-height:0;margin-top:12px"></div>`;
+    } else {
+      $('fStage').innerHTML = `<div class="flag-stage">${flagSVG(c)}</div>
+        <div class="options" id="fOptions">${opts.map(o => `<button class="option" data-c="${o}">${FLAG_MEANING[o].short}</button>`).join('')}</div>
+        <div class="flag-answer" id="fAnswer" style="min-height:0;margin-top:12px"></div>`;
+    }
+    fButtons('<button class="btn" id="fNext" disabled>Next →</button>');
+    $('fHint').innerHTML = '<kbd>1</kbd>–<kbd>4</kbd> choose · <kbd>Enter</kbd> next';
+  } else {
+    const word = makeHoist();
+    fItem = { mode, target: word, revealed: false };
+    $('fStage').innerHTML = `<div class="hoist">${[...word].map(flagSVG).join('')}</div><div id="fAnswer"></div>`;
+    fButtons('<button class="btn primary" id="fReveal">Reveal</button>');
+    $('fHint').innerHTML = '<kbd>Space</kbd> reveal · <kbd>Enter</kbd> next';
+  }
+}
+
+function revealFlag() {
+  if (!fItem || fItem.revealed || !['recall', 'hoist'].includes(fItem.mode)) return;
+  fItem.revealed = true;
+  if (fItem.mode === 'recall') {
+    const c = fItem.target;
+    $('fAnswer').innerHTML = `<div class="name"><b>${c}</b>${nato(c).display}</div>${meaningHTML(c)}`;
+    fButtons('<button class="btn primary" id="fKnew">✓ Knew it</button><button class="btn stop" id="fMissed">✗ Missed it</button>');
+  } else {
+    $('fAnswer').innerHTML = `<div class="word" style="padding:8px 0 12px;font-size:2rem">${fItem.target}</div>
+      <div class="chips" id="fChips">${chipsHTML(fItem.target, 'f')}</div><div class="tip">Tap any flag you misread</div>`;
+    fButtons('<button class="btn primary" id="fNext">Next →</button>');
+  }
+}
+function answerFlag(chosen) {
+  if (!fItem || fItem.answered || !['find', 'meaning'].includes(fItem.mode)) return;
+  fItem.answered = true;
+  const c = fItem.target, ok = chosen === c;
+  recordFlag(c, ok);
+  $('fOptions').classList.add('answered');
+  $('fOptions').querySelectorAll('.option').forEach(el => {
+    const o = el.dataset.c;
+    if (o === c) el.classList.add('correct');
+    else if (o === chosen) el.classList.add('wrong');
+    const label = el.querySelector('small');
+    if (label) label.textContent = `${o} · ${nato(o).display}`;
+  });
+  $('fAnswer').innerHTML = `<div class="name" style="font-size:1.2rem"><b>${c}</b>${nato(c).display}</div>${meaningHTML(c)}`;
+  $('fNext').disabled = false;
+  $('fNext').classList.add('primary');
+  $('fNext').focus({ preventScroll: true });
+  fMeta();
+}
+function finishFlag(ok) {
+  if (!fItem) return;
+  if (fItem.mode === 'recall') { if (!fItem.revealed) return; recordFlag(fItem.target, ok); }
+  if (fItem.mode === 'hoist' && fItem.revealed) {
+    const wrong = wrongIndices($('fChips'));
+    [...fItem.target].forEach((c, i) => recordFlag(c, !wrong.has(i)));
+  }
+  if (['find', 'meaning'].includes(fItem.mode) && !fItem.answered) return;
+  nextFlag();
+}
+$('fActions').addEventListener('click', e => {
+  const id = e.target.closest('button')?.id;
+  if (id === 'fReveal') revealFlag();
+  else if (id === 'fKnew') finishFlag(true);
+  else if (id === 'fMissed') finishFlag(false);
+  else if (id === 'fNext') finishFlag();
+});
+$('fStage').addEventListener('click', e => {
+  const opt = e.target.closest('.option');
+  if (opt) return answerFlag(opt.dataset.c);
+  e.target.closest('#fChips .chip')?.classList.toggle('wrong');
+});
+function flagKey(e) {
+  const k = e.key.toLowerCase(), m = fItem?.mode;
+  if (m === 'recall') {
+    if (e.key === ' ') { e.preventDefault(); revealFlag(); }
+    else if (e.key === 'Enter' && fItem.revealed) { e.preventDefault(); finishFlag(true); }
+    else if (k === 'x' && fItem.revealed) finishFlag(false);
+  } else if (m === 'hoist') {
+    if (e.key === ' ') { e.preventDefault(); revealFlag(); }
+    else if (e.key === 'Enter' && fItem.revealed) { e.preventDefault(); finishFlag(); }
+  } else if (m === 'find' || m === 'meaning') {
+    if (/^[1-4]$/.test(e.key) && !fItem.answered) answerFlag($('fOptions').children[+e.key - 1].dataset.c);
+    else if (e.key === 'Enter' && fItem.answered) { e.preventDefault(); finishFlag(); }
+  }
+}
+$('fRef').innerHTML = [...LETTERS].map(c => `<div>${flagSVG(c)}<div><div class="name"><b>${c}</b>${NATO[c].display}</div>${meaningHTML(c)}</div></div>`).join('');
+
 // ================= Init =================
-setMode(['speak', 'dictate', 'progress'].includes(settings.mode) ? settings.mode : 'speak');
+setMode(['speak', 'dictate', 'flags', 'progress'].includes(settings.mode) ? settings.mode : 'speak');
+nextFlag();
 nextWord();
 if ('serviceWorker' in navigator && location.protocol === 'https:') navigator.serviceWorker.register('sw.js');
 </script>
