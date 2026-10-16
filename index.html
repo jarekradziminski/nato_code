@@ -315,6 +315,7 @@
         <div class="field">
           <label>Radio static <output id="dStaticOut"></output></label>
           <input type="range" id="dStatic" min="0" max="100" step="5">
+          <div class="muted small" style="margin-top:4px">When on, a recorded radio voice is used (the voice setting doesn't apply).</div>
         </div>
         <div class="field">
           <label>Voice</label>
@@ -698,12 +699,14 @@ async function speakString(s, gapMs) {
   }
 }
 
-// ================= Radio static (Web Audio) =================
-// Speech synthesis can't be routed through Web Audio, so the static plays alongside it.
-let audioCtx = null, noiseGain = null;
+// ================= Radio static + radio voice (Web Audio) =================
+// iOS can't play speech synthesis and Web Audio at the same time. So with static on, dictation
+// uses recorded voice samples played through the same audio graph: they overlap properly
+// everywhere and get a radio-style band filter.
+let audioCtx = null, noiseGain = null, voiceIn = null;
 function ensureAudio() {
   const AC = window.AudioContext || window.webkitAudioContext;
-  if (!AC) return;
+  if (!AC) return false;
   if (!audioCtx) {
     audioCtx = new AC();
     const len = audioCtx.sampleRate * 4;
@@ -724,8 +727,54 @@ function ensureAudio() {
     noiseGain.gain.value = 0;
     src.connect(band).connect(noiseGain).connect(audioCtx.destination);
     src.start();
+
+    const hp = audioCtx.createBiquadFilter();
+    hp.type = 'highpass'; hp.frequency.value = 300;
+    const lp = audioCtx.createBiquadFilter();
+    lp.type = 'lowpass'; lp.frequency.value = 3400;
+    const voiceGain = audioCtx.createGain();
+    voiceGain.gain.value = 1.4;
+    hp.connect(lp).connect(voiceGain).connect(audioCtx.destination);
+    voiceIn = hp;
   }
-  if (audioCtx.state === 'suspended') audioCtx.resume();
+  // iOS can leave the context 'interrupted' after speech synthesis ran.
+  if (audioCtx.state !== 'running') audioCtx.resume();
+  return true;
+}
+
+// Samples were recorded at three speeds; pick the closest and fine-tune with playbackRate.
+const SAMPLE_SETS = { slow: 125 / 175, normal: 1, fast: 240 / 175 };
+const SAMPLE_KEYS = [...LETTERS, ...[...DIGITS].map(d => 'd' + d), 'at', 'dot', 'dash',
+  ...Array.from({ length: 20 }, (_, i) => 'g' + (i + 1))];
+const sampleKey = c => /[A-Z]/.test(c) ? c : /\d/.test(c) ? 'd' + c : { '@': 'at', '.': 'dot', '-': 'dash' }[c];
+const sampleCache = {};
+function chooseVariant(rate) {
+  const dist = k => Math.abs(Math.log(rate / SAMPLE_SETS[k]));
+  return Object.keys(SAMPLE_SETS).reduce((a, b) => dist(b) < dist(a) ? b : a);
+}
+function loadSamples(variant) {
+  sampleCache[variant] ??= Promise.all(SAMPLE_KEYS.map(async k => {
+    const res = await fetch(`audio/${variant}/${k}.m4a`);
+    if (!res.ok) throw new Error(`audio/${variant}/${k}.m4a: ${res.status}`);
+    return [k, await audioCtx.decodeAudioData(await res.arrayBuffer())];
+  })).then(Object.fromEntries).catch(err => {
+    delete sampleCache[variant]; // allow a retry next time
+    console.warn('Radio voice unavailable, using browser speech', err);
+    return null;
+  });
+  return sampleCache[variant];
+}
+let currentSource = null;
+function playSample(buf, variant) {
+  return new Promise(resolve => {
+    const src = audioCtx.createBufferSource();
+    src.buffer = buf;
+    src.playbackRate.value = Math.min(1.25, Math.max(0.8, settings.dRate / SAMPLE_SETS[variant]));
+    src.connect(voiceIn);
+    src.onended = () => { if (currentSource === src) currentSource = null; resolve(); };
+    currentSource = src;
+    src.start();
+  });
 }
 function setStatic(on) {
   if (!noiseGain) return;
@@ -835,8 +884,10 @@ const dots = (s, j) => [...s].map((c, i) => c === ' ' ? ' ' : i <= j ? '●' : '
 
 async function runDictation(set) {
   // Everything before the first await runs inside the tap, which iOS requires for audio.
-  unlockSpeech();
-  if (settings.dStatic > 0) ensureAudio();
+  const radio = settings.dStatic > 0 && ensureAudio();
+  const variant = radio ? chooseVariant(settings.dRate) : null;
+  const loading = radio ? loadSamples(variant) : null;
+  if (!radio) unlockSpeech(); // speech synthesis would interrupt Web Audio on iOS
   keepAwake(true);
   const runId = ++dRunId;
   dSet = set; dRunning = true; dPaused = false; dSaved = false;
@@ -846,13 +897,21 @@ async function runDictation(set) {
   setStatus('Get ready…');
   setStatic(true);
   await dSleep(1200, runId);
+  let samples = null;
+  if (loading) {
+    setStatus('Tuning radio…');
+    samples = await loading;
+    if (runId !== dRunId) return;
+  }
+  // Recorded radio voice when available, browser speech otherwise.
+  const say = (key, text) => samples?.[key] ? playSample(samples[key], variant) : speak(text);
 
   for (let i = 0; i < set.length; i++) {
     if (runId !== dRunId) return;
     $('dProgress').textContent = `String ${i + 1} of ${set.length}`;
     if (settings.dAnnounce) {
       setStatus(`Group ${i + 1}`);
-      await speak(`Group ${i + 1}`);
+      await say('g' + (i + 1), `Group ${i + 1}`);
       await dSleep(800, runId);
     }
     const s = set[i];
@@ -861,7 +920,7 @@ async function runDictation(set) {
       await waitWhilePaused(runId);
       if (s[j] === ' ') { await dSleep(settings.dGap * 1000, runId); continue; }
       setStatus(dots(s, j), true);
-      await speak(NATO[s[j]].say);
+      await say(sampleKey(s[j]), NATO[s[j]].say);
       if (j < s.length - 1) await dSleep(settings.dGap * 1000, runId);
     }
     if (i < set.length - 1) {
@@ -888,6 +947,7 @@ function stopDictation() {
   if (!dRunning) return;
   dRunId++;
   tts?.cancel();
+  currentSource?.stop();
   finishDictation('Stopped');
 }
 function togglePause() {
