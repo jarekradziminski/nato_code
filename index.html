@@ -241,8 +241,9 @@
           <label>Auto-reveal after <output id="sTimerOut"></output></label>
           <input type="range" id="sTimer" min="0" max="20" step="1">
         </div>
-        <div class="field checks" data-when="random">
-          <label class="check"><input type="checkbox" id="sDigits"> Include digits 0–9</label>
+        <div class="field checks">
+          <label class="check" data-when="random"><input type="checkbox" id="sDigits"> Include digits 0–9</label>
+          <label class="check" data-when="random formats"><input type="checkbox" id="sRadioDigits"> Radio-style digits (Tree, Fower, Fife)</label>
         </div>
       </div>
     </details>
@@ -323,6 +324,7 @@
         </div>
         <div class="field checks full">
           <label class="check" data-when="random"><input type="checkbox" id="dDigits"> Include digits 0–9</label>
+          <label class="check" data-when="random formats"><input type="checkbox" id="dRadioDigits"> Radio-style digits (Tree, Fower, Fife)</label>
           <label class="check"><input type="checkbox" id="dAnnounce"> Announce string number ("Group 1…")</label>
           <label class="check"><input type="checkbox" id="dLadder"> Speed ladder: shorten the gap after perfect strings, lengthen it after misses</label>
         </div>
@@ -371,6 +373,11 @@ const NATO = {
   9:{display:'Niner',say:'Niner'},
   '@':{display:'At',say:'at'}, '.':{display:'Dot',say:'dot'}, '-':{display:'Dash',say:'dash'},
 };
+// Radio/ICAO pronunciation for the digits most easily misheard.
+const RADIO_DIGITS = {
+  3:{display:'Tree',say:'Tree'}, 4:{display:'Fower',say:'Fow-er'}, 5:{display:'Fife',say:'Fife'},
+};
+const nato = c => (settings.radioDigits && RADIO_DIGITS[c]) || NATO[c];
 const LETTERS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
 const DIGITS = '0123456789';
 
@@ -479,7 +486,7 @@ const DEFAULTS = {
   mode: 'speak', theme: 'auto', adaptive: true,
   sSource: 'random', sFormat: 'mixed', sLen: 5, sLenMax: 5, sTimer: 0, sDigits: false,
   dSource: 'random', dFormat: 'mixed', dLen: 5, dLenMax: 5, dCount: 5, dGap: 1.5, dRate: 0.9, dPause: 4,
-  dStatic: 0, dVoice: '', dDigits: false, dAnnounce: true, dLadder: false,
+  dStatic: 0, dVoice: '', dDigits: false, dAnnounce: true, dLadder: false, radioDigits: false,
 };
 const settings = { ...DEFAULTS, ...JSON.parse(localStorage.getItem('nato-settings') || '{}') };
 const save = () => localStorage.setItem('nato-settings', JSON.stringify(settings));
@@ -559,7 +566,7 @@ function generate(p) {
 function chipsHTML(s, row) {
   return [...s].map((c, i) => c === ' '
     ? '<span class="gap"></span>'
-    : `<button class="chip" data-row="${row}" data-i="${i}"><b>${c}</b>${NATO[c].display}</button>`).join('');
+    : `<button class="chip" data-row="${row}" data-i="${i}"><b>${c}</b>${nato(c).display}</button>`).join('');
 }
 const wrongIndices = container => new Set([...container.querySelectorAll('.chip.wrong')].map(el => +el.dataset.i));
 
@@ -587,6 +594,19 @@ function linkRange(minId, maxId) {
 linkRange('sLen', 'sLenMax');
 linkRange('dLen', 'dLenMax');
 
+// One setting, shown in both modes' settings.
+for (const id of ['sRadioDigits', 'dRadioDigits']) {
+  $(id).checked = settings.radioDigits;
+  $(id).addEventListener('change', () => {
+    settings.radioDigits = $(id).checked; save();
+    $('sRadioDigits').checked = $('dRadioDigits').checked = settings.radioDigits;
+    renderRef();
+    if (sRevealed) $('sReveal').querySelectorAll('.chip').forEach(el => {
+      const c = sCurrent[el.dataset.i];
+      el.innerHTML = `<b>${c}</b>${nato(c).display}`;
+    });
+  });
+}
 for (const id of ['sDigits', 'dDigits', 'dAnnounce', 'dLadder', 'adaptive']) {
   $(id).checked = settings[id];
   $(id).addEventListener('change', () => { settings[id] = $(id).checked; save(); });
@@ -695,7 +715,7 @@ async function speakString(s, gapMs) {
   tts?.cancel();
   for (const c of s) {
     if (c === ' ') { await sleep(gapMs); continue; }
-    await speak(NATO[c].say);
+    await speak(nato(c).say);
     await sleep(gapMs);
   }
 }
@@ -770,9 +790,11 @@ function silentWavUrl() {
 
 // Samples were recorded at three speeds; pick the closest and fine-tune with playbackRate.
 const SAMPLE_SETS = { slow: 125 / 175, normal: 1, fast: 240 / 175 };
-const SAMPLE_KEYS = [...LETTERS, ...[...DIGITS].map(d => 'd' + d), 'at', 'dot', 'dash',
+const SAMPLE_KEYS = [...LETTERS, ...[...DIGITS].map(d => 'd' + d), ...Object.keys(RADIO_DIGITS).map(d => 'r' + d), 'at', 'dot', 'dash',
   ...Array.from({ length: 20 }, (_, i) => 'g' + (i + 1))];
-const sampleKey = c => /[A-Z]/.test(c) ? c : /\d/.test(c) ? 'd' + c : { '@': 'at', '.': 'dot', '-': 'dash' }[c];
+const sampleKey = c => /[A-Z]/.test(c) ? c
+  : /\d/.test(c) ? (settings.radioDigits && RADIO_DIGITS[c] ? 'r' : 'd') + c
+  : { '@': 'at', '.': 'dot', '-': 'dash' }[c];
 const sampleCache = {}, readySamples = {};
 function chooseVariant(rate) {
   const dist = k => Math.abs(Math.log(rate / SAMPLE_SETS[k]));
@@ -967,7 +989,7 @@ async function runDictation(set) {
       await waitWhilePaused(runId);
       if (s[j] === ' ') { await dSleep(settings.dGap * 1000, runId); continue; }
       setStatus(dots(s, j), true);
-      await say(sampleKey(s[j]), NATO[s[j]].say);
+      await say(sampleKey(s[j]), nato(s[j]).say);
       if (j < s.length - 1) await dSleep(settings.dGap * 1000, runId);
     }
     if (i < set.length - 1) {
@@ -1082,12 +1104,12 @@ function renderProgress() {
     <div class="stat"><b>${weakest.join(' ') || '–'}</b><span>weakest</span></div>`;
   $('pGrid').innerHTML = chars.map(c => {
     const s = stats[c];
-    if (!s?.seen) return `<div class="cell unseen"><b>${c}</b><span class="name">${NATO[c].display}</span><small>not yet</small></div>`;
+    if (!s?.seen) return `<div class="cell unseen"><b>${c}</b><span class="name">${nato(c).display}</span><small>not yet</small></div>`;
     const r = s.wrong / s.seen;
     const bg = r === 0
       ? 'color-mix(in srgb, var(--good) 18%, var(--card2))'
       : `color-mix(in srgb, var(--bad) ${Math.round(Math.min(45, 12 + r * 80))}%, var(--card2))`;
-    return `<div class="cell" style="background:${bg}"><b>${c}</b><span class="name">${NATO[c].display}</span>
+    return `<div class="cell" style="background:${bg}"><b>${c}</b><span class="name">${nato(c).display}</span>
       <small>${Math.round(100 * (1 - r))}% · ${s.seen}×</small></div>`;
   }).join('');
 }
@@ -1114,7 +1136,8 @@ document.addEventListener('keydown', e => {
 });
 
 // ================= Reference =================
-$('ref').innerHTML = [...LETTERS, ...DIGITS].map(k => `<div><b>${k}</b>${NATO[k].display}</div>`).join('');
+const renderRef = () => { $('ref').innerHTML = [...LETTERS, ...DIGITS].map(k => `<div><b>${k}</b>${nato(k).display}</div>`).join(''); };
+renderRef();
 
 // ================= Init =================
 setMode(['speak', 'dictate', 'progress'].includes(settings.mode) ? settings.mode : 'speak');
