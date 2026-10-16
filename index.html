@@ -229,29 +229,86 @@ const LETTERS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
 const DIGITS = '0123456789';
 
 const WORDS = `
-ox ax go up we by my it on at to be no so do if in is me us
-cat dog sun box sky fox jet map key cup red pen zip vex jaw wax quiz hat ice oak yak gym fly
-jump fish lamp wolf king frog rock bird ship snow wind gold milk park ring zone quay jazz hawk
-yard vial plum moth glow kite cove whip echo talk duck
-apple brave chair delta eagle flame grape house input joker knife lemon mango night ocean
-piano queen radio storm tiger umbra voice whale xenon yacht zebra crisp glyph jumpy quilt
-oxide vivid waltz pixel sword
-anchor bridge castle desert engine forest guitar harbor island jungle kitten ladder magnet
-napkin orange pepper quartz rabbit silver tunnel violet window yellow zipper frozen sphinx
-blazer jigsaw oxygen
-airport balloon cabinet dolphin example fortune gravity hamster jackpot kingdom lantern
-mustard network octopus pyramid quality rainbow shuttle trumpet unicorn vampire weather
-zealous whiskey jukebox
-alphabet backpack calendar dinosaur elephant firework hospital keyboard language mountain
-notebook painting question research squirrel triangle umbrella vacation wildlife xylophone
-quizzing
-adventure blueprint chocolate dangerous education framework geography happiness
-important jellyfish kilometer landscape motorbike nightmare orchestra paragraph
-quarterly satellite telescope vegetable waterfall
-basketball calculator dictionary experience friendship generation helicopter
-identities journalism leadership microphone navigation photograph quarantine
-skyscraper technology volleyball
-background playground strawberry university complexity
+ah am an as at ax be by do eh ex go ha he hi ho id if in is it lo ma me mu my no nu of oh ok on
+or ow ox pa pi re so ta to up us we xi ye yo
+ant arm bag bat bed bee box bus cab cat cow cub cup dam den dig dog dot ear egg elf elk fan fig fin
+fly fog fox fur gem gum gym hat hen hip hut ice ink jam jaw jet jog key kid lab lid log map mix mud
+net nut oak owl pad paw pen pie pig pot rag ram rat red rib rug saw sea sky sun tag tap tea toy van
+vet vex wax web wig yak yam zip zoo
+arch axle bake barn beam bird bolt bulb cage calm card clay coal coat code comb cove crab crew dart
+dawn deck dice dove drum duck dust echo exit fern film fish fork frog gate gift glow gold gulf hawk
+hike hill horn iris iron jade jazz jeep jump kelp king kite knot lace lake lamp leaf lion loop mask
+milk mint moth mule nest oven park pear plum quay quiz raft reef ring rock rope salt seal ship silk
+snow sock star talk tide tusk vase vest vial wave whip wind wolf yard yolk zinc zone
+amber apple badge basin bench blaze bloom brave cabin camel candy cargo chair chess cider cliff
+cloud coral crane crisp crown daisy delta dwarf eagle fable ferry flame flock forge ghost giant
+globe glyph grape honey house igloo input ivory jewel joker jumpy kayak knife koala latch lemon
+lemur lodge mango maple medal moose night nylon ocean olive opera otter oxide panda pearl piano
+pixel plaza prism quack queen quilt quote radio raven rover salad scarf shark skunk slate spade
+squid storm swamp sword table tiger torch tulip umbra vault viper vivid voice wagon waltz whale
+wheat xenon yacht youth zebra
+absorb almond anchor arcade autumn badger banana barrel beacon blazer breeze bridge bucket button
+cactus candle carpet castle cherry cobalt copper cotton cowboy coyote desert dragon engine fabric
+falcon forest fossil frozen gadget galaxy garlic goblin guitar hammer harbor helmet hockey hornet
+hurdle island jacket jaguar jigsaw jungle kernel kitten ladder lagoon lizard magnet marble meadow
+meteor mirror muffin napkin nickel noodle orange oxygen parrot pebble pepper pickle planet pocket
+puzzle quartz quiver rabbit rocket saddle salmon shadow silver sphinx spider sponge sprout stereo
+summit tomato tunnel turkey velvet violet walnut window wizard yellow zipper
+acrobat airport almanac anthill artwork balcony balloon bandage battery biscuit blanket buffalo
+cabbage cabinet caramel cartoon chimney coconut compass crystal cupcake custard diamond dolphin
+eclipse emerald example feather fiction fortune freckle giraffe glacier gravity hamster harvest
+horizon iceberg jackpot jasmine journey jukebox kingdom kitchen lantern leopard lettuce
+library lobster mammoth monster mustang mustard network nostril octopus orchard panther pelican
+penguin pumpkin pyramid quality raccoon rainbow sardine scooter seaweed shuttle sparrow station
+sunrise sweater teacher thunder tractor trumpet unicorn uniform vampire volcano warrior weather
+whiskey zealous
+aardvark airplane alphabet amethyst antelope aquarium asteroid backpack barbecue barnacle bluebird
+building calendar camomile cardinal carnival cashmere chestnut cinnamon composer cucumber daffodil
+dinosaur distance dumpling elephant envelope festival firewood firework flamingo fountain gardener
+gemstone goldfish hedgehog hospital hydrogen junction kangaroo keyboard language lavender lemonade
+magician magnolia mandolin marathon meatball molecule mosquito mountain mushroom necklace notebook
+nutshell ointment overcoat painting pancakes panorama parakeet pinecone platypus porridge pretzels
+question quizzing reindeer research sandwich scorpion seahorse shipyard skeleton snowball squirrel
+sunlight tortoise trapdoor treasure triangle umbrella undertow vacation vineyard wildlife
+accordion adventure alligator ambulance announcer astronaut avalanche blueberry blueprint boomerang
+butterfly cardboard carpenter cathedral chameleon champagne chocolate cranberry crocodile dangerous
+detective dragonfly education evergreen fireplace fireworks framework geography hairbrush hamburger
+happiness harmonica honeycomb horseshoe hurricane important jellyfish kilometer labyrinth landscape
+limestone marmalade midsummer motorbike nightfall nightmare orangutan orchestra parachute paragraph
+pineapple porcupine quarterly raspberry sandstone satellite saxophone scarecrow shoelaces snowflake
+snowstorm spaghetti spearmint submarine sunflower tarantula telescope tightrope toothpick vegetable
+wallpaper waterfall whirlwind windmills wristband xylophone
+aquamarine assessment background basketball beekeepers blacksmith bookkeeper brainstorm breadcrumb
+brightness calculator campground chandelier chimpanzee complexity confidence cornflower crossroads
+dictionary dishwasher earthquake embroidery experience fingernail flashlight footprints friendship
+generation goalkeeper grapefruit greenhouse handshakes headphones helicopter identities ingredient
+instrument journalism kettledrum kingfisher leadership lighthouse lumberjack mechanical microphone
+moonflower motorcycle navigation newsletter nightshade parliament peppermint photograph playground
+powerhouse quarantine rhinoceros sandcastle sculptures skateboard skyscraper spacecraft stagecoach
+strawberry sunglasses technology timberland toothbrush toothpaste trampoline understand underwater
+university volleyball watermelon woodpecker
+accommodate achievement acknowledge adolescence advertising agriculture anniversary appointment
+archaeology arrangement astronomers atmospheric battlefield blacksmiths bloodstream bookshelves
+candlestick caterpillar celebration certificate chimpanzees clothesline collaborate combination
+comfortable communicate competition complicated concentrate countryside daydreaming dishwashers
+electrician electricity embarrassed engineering environment examination exploration fingerprint
+firefighter flashlights fluorescent forgiveness frontrunner gingerbread grandfather grandmother
+grasshopper hairdresser handwriting hummingbird imagination independent information inspiration
+instruction investigate lighthouses lightweight marshmallow masterpiece mathematics microscopes
+mountaineer nightingale observatory opportunity photography playgrounds playwrights quarterback
+refrigerate restaurants scholarship screwdriver snowboarder springboard storyteller temperature
+thermometer thunderbolt translation typewriters underground weathervane wheelbarrow whereabouts
+accelerating accomplished accordionist agricultural announcement appreciation architecture
+astronomical biodiversity breakthrough butterscotch calculations championship circumstance
+civilization commissioned complication construction contribution conventional conversation
+demonstrated departmental dramatically encyclopedia enthusiastic entrepreneur experimental
+firefighters gingerbreads grandparents headquarters housekeeping hypothetical identifiable
+illustration imaginations incorporated independence intelligence interference interruption
+investigator kaleidoscope kindergarten laboratories manufacturer marshmallows mathematical
+neighborhood nevertheless nutritionist observations orchestrated organization overwhelming
+paperweights photographer questionable refrigerator relationship satisfaction scholarships
+snowboarding spokesperson storytellers strawberries subscription thunderstorm tranquillity
+unbelievable undercurrent watercolours
 `.trim().split(/\s+/).map(w => w.toUpperCase());
 
 // ---------- Helpers ----------
