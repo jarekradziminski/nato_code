@@ -159,6 +159,14 @@
   .koch-set { display: flex; flex-wrap: wrap; gap: 5px; justify-content: center; margin-top: 12px; }
   .kchar { font-family: ui-monospace, Menlo, monospace; padding: 2px 7px; border-radius: 6px; background: var(--card2); font-size: .9rem; }
   .kchar.new { background: var(--accent); color: var(--accent-ink); font-weight: 700; }
+  .picker { display: grid; grid-template-columns: repeat(auto-fill, minmax(40px, 1fr)); gap: 5px; }
+  .pchar {
+    min-height: 40px; border-radius: 8px; border: 1px solid var(--border); background: var(--card2); color: var(--muted);
+    font: 600 1rem ui-monospace, Menlo, monospace; cursor: pointer;
+  }
+  .pchar.on { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
+  .presets { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
+  .presets .btn { font-family: ui-monospace, Menlo, monospace; }
   .keypad { display: grid; grid-template-columns: repeat(auto-fill, minmax(50px, 1fr)); gap: 6px; margin-top: 16px; }
   .key {
     min-height: 50px; border-radius: 10px; border: 1px solid var(--border); background: var(--card2); color: var(--text);
@@ -496,7 +504,7 @@
   <section class="mode" id="mode-morse">
     <div class="card">
       <div class="seg" data-setting="mMode">
-        <button data-value="koch">Koch lessons</button>
+        <button data-value="koch">Drill</button>
         <button data-value="copy">Copy</button>
         <button data-value="signals">Signals</button>
       </div>
@@ -519,7 +527,19 @@
             <button data-value="both">Both</button>
           </div>
         </div>
-        <div class="field" data-mwhen="koch">
+        <div class="field full" data-mwhen="koch">
+          <label>Character set</label>
+          <div class="seg" data-setting="mDrill">
+            <button data-value="koch">Koch path</button>
+            <button data-value="custom">Custom</button>
+          </div>
+        </div>
+        <div class="field full" id="mPickerField">
+          <label>Custom characters <output id="mCustomOut"></output></label>
+          <div class="picker" id="mPicker"></div>
+          <div class="presets" id="mPresets"></div>
+        </div>
+        <div class="field" data-mwhen="koch" data-drill="koch">
           <label>Koch characters <output id="mKochOut"></output></label>
           <input type="range" id="mKoch" min="2" max="36" step="1">
         </div>
@@ -539,7 +559,8 @@
         <div class="field full" data-mwhen="copy">
           <label>Characters</label>
           <div class="seg" data-setting="mSource">
-            <button data-value="koch">Koch set</button>
+            <button data-value="koch">Koch</button>
+            <button data-value="custom">Custom</button>
             <button data-value="letters">A–Z</button>
             <button data-value="all">A–Z 0–9</button>
             <button data-value="words">Words</button>
@@ -753,7 +774,7 @@ const DEFAULTS = {
   sSource: 'random', sFormat: 'mixed', sLen: 5, sLenMax: 5, sTimer: 0, sDigits: false,
   dSource: 'random', dFormat: 'mixed', dLen: 5, dLenMax: 5, dCount: 5, dGap: 1.5, dRate: 0.9, dPause: 4,
   dStatic: 0, dVoice: '', dDigits: false, dAnnounce: true, dLadder: false, radioDigits: false, dAnswer: 'paper', focus: [], fMode: 'recall', pView: 'nato',
-  mMode: 'koch', mOutput: 'sound', mWpm: 20, mEff: 10, mTone: 600, mKoch: 2, mSource: 'koch', mAnswer: 'type',
+  mMode: 'koch', mOutput: 'sound', mWpm: 20, mEff: 10, mTone: 600, mKoch: 2, mDrill: 'koch', mCustom: [...'EISHTMO'], mSource: 'koch', mAnswer: 'type',
   mLen: 5, mLenMax: 5, mCount: 5, mPause: 3, mStatic: 0,
 };
 const settings = { ...DEFAULTS, ...JSON.parse(localStorage.getItem('nato-settings') || '{}') };
@@ -928,7 +949,8 @@ document.querySelectorAll('.seg').forEach(seg => {
     settings[key] = v; save(); render(); syncSourceFields();
     if (key === 'dAnswer') updateAnswerMode();
     if (key === 'fMode') nextFlag();
-    if (key === 'mMode' || key === 'mAnswer') renderMorse();
+    if (key === 'mMode' || key === 'mAnswer' || key === 'mDrill') renderMorse();
+    if (key === 'mSource') syncMorseFields();
     if (key === 'mOutput') syncMorseFields();
     if (key === 'pView') renderProgress();
     if (key === 'sSource') nextWord();
@@ -2023,7 +2045,12 @@ function stopMorseAll() {
 // ---------- Tab rendering ----------
 const mActions = html => { $('mActions').innerHTML = html; };
 function syncMorseFields() {
-  document.querySelectorAll('#mode-morse [data-mwhen]').forEach(el => { el.hidden = el.dataset.mwhen !== settings.mMode; });
+  document.querySelectorAll('#mode-morse [data-mwhen]').forEach(el => {
+    el.hidden = el.dataset.mwhen !== settings.mMode || (el.dataset.drill && el.dataset.drill !== settings.mDrill);
+  });
+  // The custom picker serves both the drill and copy practice.
+  $('mPickerField').hidden = !((settings.mMode === 'koch' && settings.mDrill === 'custom') || (settings.mMode === 'copy' && settings.mSource === 'custom'));
+  renderPicker();
   $('mLampWrap').hidden = settings.mOutput === 'sound';
   $('mLamp').classList.toggle('big', settings.mOutput === 'light');
 }
@@ -2037,9 +2064,39 @@ function renderMorse() {
 // ---------- Koch lessons ----------
 let koch = { item: null, awaiting: false, window: [], started: false };
 const kochChars = () => KOCH_ORDER.slice(0, settings.mKoch);
+const customChars = () => [...LETTERS, ...DIGITS].filter(c => settings.mCustom.includes(c)).join('');
+const isCustomDrill = () => settings.mDrill === 'custom';
+// The drill needs at least two characters to be a choice.
+const drillChars = () => isCustomDrill() && customChars().length >= 2 ? customChars() : kochChars();
+
+// Families that sound alike: drilling them together trains the ear to tell them apart.
+const MORSE_PRESETS = ['EISH5', 'TMO0', 'AUV4', 'NDB6', 'WJ1', 'GZ7', 'KCYQ', 'RLFP'];
+function renderPicker() {
+  const set = settings.mCustom;
+  $('mPicker').innerHTML = [...LETTERS, ...DIGITS].map(c => `<button class="pchar${set.includes(c) ? ' on' : ''}" data-c="${c}" aria-pressed="${set.includes(c)}">${c}</button>`).join('');
+  $('mPresets').innerHTML = MORSE_PRESETS.map(p => `<button class="btn sm" data-set="${p}">${[...p].join(' ')}</button>`).join('') +
+    '<button class="btn sm" data-set="">Clear</button>';
+  $('mCustomOut').textContent = set.length < 2 ? 'pick at least 2' : set.length;
+}
+function setCustom(chars) {
+  settings.mCustom = [...LETTERS, ...DIGITS].filter(c => chars.includes(c)); save();
+  renderPicker();
+  koch.window = [];
+  if (settings.mMode === 'koch' && isCustomDrill() && !koch.started) renderKoch();
+}
+$('mPicker').addEventListener('click', e => {
+  const c = e.target.closest('.pchar')?.dataset.c;
+  if (c) setCustom(settings.mCustom.includes(c) ? settings.mCustom.filter(x => x !== c) : [...settings.mCustom, c]);
+});
+$('mPresets').addEventListener('click', e => {
+  const b = e.target.closest('[data-set]');
+  if (b) setCustom([...b.dataset.set]);
+});
 function renderKoch() {
-  const chars = kochChars(), newest = chars.at(-1);
-  $('mCounter').textContent = `Koch: ${chars.length} of ${KOCH_ORDER.length} characters`;
+  const custom = isCustomDrill(), chars = drillChars(), newest = custom ? null : chars.at(-1);
+  $('mCounter').textContent = custom
+    ? (customChars().length >= 2 ? `Custom set: ${chars.length} characters` : 'Pick at least 2 custom characters in Settings (using Koch for now)')
+    : `Koch: ${chars.length} of ${KOCH_ORDER.length} characters`;
   $('mStage').innerHTML = `
     <div class="koch-set">${[...chars].map(c => `<span class="kchar${c === newest ? ' new' : ''}">${c}</span>`).join('')}</div>
     <div class="morse-big" id="kBig">?</div>
@@ -2047,7 +2104,7 @@ function renderKoch() {
     <div class="keypad" id="kPad">${[...chars].map(c => `<button class="key" data-c="${c}">${c}</button>`).join('')}</div>
     <div class="koch-meter"><div class="bar"><div id="kBar"></div></div><span id="kAcc"></span></div>`;
   mActions(`<button class="btn primary" id="kStart">▶ Start</button><button class="btn" id="kReplay" disabled>🔁 Replay</button>
-    <button class="btn" id="kHearNew">Hear ${newest}</button>`);
+    <button class="btn" id="kHearNew">${newest ? `Hear ${newest}` : 'Hear all'}</button>`);
   $('mHint').innerHTML = '<kbd>Space</kbd> replay · type the character you hear';
   Object.assign(koch, { item: null, awaiting: false, started: false });
   updateKochMeter();
@@ -2056,11 +2113,12 @@ function updateKochMeter() {
   const w = koch.window, n = w.length, acc = n ? w.filter(Boolean).length / n : 0;
   $('kBar').style.width = acc * 100 + '%';
   $('kBar').classList.toggle('good', acc >= 0.9);
-  $('kAcc').textContent = n ? `${Math.round(acc * 100)}% of last ${n}${n < 20 ? ` · ${20 - n} more to unlock` : ''}`
-    : '90% over 20 characters unlocks the next one';
+  const custom = isCustomDrill();
+  $('kAcc').textContent = n ? `${Math.round(acc * 100)}% of last ${n}${n < 20 && !custom ? ` · ${20 - n} more to unlock` : ''}`
+    : custom ? 'Accuracy over your last 20 answers shows here' : '90% over 20 characters unlocks the next one';
 }
 function kochNext() {
-  const chars = [...kochChars()], newest = chars.at(-1);
+  const chars = [...drillChars()], newest = isCustomDrill() ? null : chars.at(-1);
   const pool = chars.length > 2 ? chars.filter(c => c !== koch.item) : chars;
   const c = settings.adaptive ? weightedChoice(pool, x => morseWeight(x) * (x === newest ? 2 : 1)) : pool[rand(pool.length)];
   Object.assign(koch, { item: c, awaiting: true });
@@ -2082,7 +2140,7 @@ async function kochAnswer(c) {
   if (!ok) $('kPad').querySelector(`[data-c="${c}"]`)?.classList.add('bad');
   updateKochMeter();
   const acc = koch.window.filter(Boolean).length / koch.window.length;
-  if (koch.window.length >= 20 && acc >= 0.9 && settings.mKoch < KOCH_ORDER.length) return kochLevelUp();
+  if (!isCustomDrill() && koch.window.length >= 20 && acc >= 0.9 && settings.mKoch < KOCH_ORDER.length) return kochLevelUp();
   if (!ok) { await sleep(300); if (!koch.started) return; await playMorse(t); }
   await sleep(ok ? 400 : 700);
   if (koch.started && settings.mode === 'morse' && settings.mMode === 'koch' && !koch.awaiting) kochNext();
@@ -2117,7 +2175,7 @@ function renderCopy() {
 function makeGroup() {
   const len = randLen(settings.mLen, settings.mLenMax);
   if (settings.mSource === 'words') return pickWord(Math.max(2, len), Math.max(2, settings.mLenMax));
-  const pool = { koch: kochChars(), letters: LETTERS, all: LETTERS + DIGITS }[settings.mSource];
+  const pool = { koch: kochChars(), custom: customChars().length >= 2 ? customChars() : kochChars(), letters: LETTERS, all: LETTERS + DIGITS }[settings.mSource];
   return Array.from({ length: len }, () => mPick(pool)).join('');
 }
 function copyButtons() {
@@ -2243,7 +2301,10 @@ $('mActions').addEventListener('click', e => {
   const id = e.target.closest('button')?.id;
   if (id === 'kStart') kochStart();
   else if (id === 'kReplay' && koch.item) playMorse(koch.item);
-  else if (id === 'kHearNew') { const n = kochChars().at(-1); playMorse(`${n} ${n} ${n}`); }
+  else if (id === 'kHearNew') {
+    const n = kochChars().at(-1);
+    playMorse(isCustomDrill() ? [...drillChars()].join(' ') : `${n} ${n} ${n}`);
+  }
   else if (id === 'mStart') startCopy();
   else if (id === 'mStop') stopCopy();
   else if (id === 'mCheck') checkCopy();
