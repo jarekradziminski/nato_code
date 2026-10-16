@@ -23,6 +23,7 @@
     --good: #16a34a; --bad: #dc2626; --warn-bg: #fef3c7; --warn-ink: #92400e;
     --shadow: 0 1px 2px rgb(15 23 42 / .06), 0 4px 16px rgb(15 23 42 / .06);
     --radius: 16px;
+    --chart: #0284c7; /* validated for both light and dark surfaces */
     color-scheme: light;
   }
   :root[data-theme=dark] {
@@ -178,12 +179,45 @@
   .warn { background: var(--warn-bg); color: var(--warn-ink); padding: 10px 14px; border-radius: 12px; margin-bottom: 14px; display: none; }
 
   /* ---------- Progress ---------- */
-  .stat-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+  .stat-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 10px; }
   .stat { background: var(--card2); border-radius: 12px; padding: 12px; text-align: center; }
   .stat b { display: block; font-size: 1.4rem; }
   .stat span { color: var(--muted); font-size: .8rem; }
   .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(96px, 1fr)); gap: 8px; }
-  .cell { border-radius: 12px; padding: 10px; background: var(--card2); border: 1px solid var(--border); }
+  .cell {
+    border-radius: 12px; padding: 10px; background: var(--card2); border: 1px solid var(--border);
+    text-align: left; color: var(--text); cursor: pointer; position: relative;
+  }
+  .cell.focused { outline: 2px solid var(--accent); outline-offset: 1px; }
+  .cell.focused::after { content: '🎯'; position: absolute; top: 6px; right: 8px; font-size: .85rem; }
+  .card-head { display: flex; flex-wrap: wrap; gap: 8px 12px; align-items: center; justify-content: space-between; margin-bottom: 12px; }
+  .card-head h2 { margin: 0; }
+  .btn.sm { padding: 6px 12px; min-height: 0; font-size: .85rem; border-radius: 9px; }
+  .focus-pill {
+    display: block; margin: 10px auto 0; padding: 5px 12px; border-radius: 999px; cursor: pointer;
+    border: 1px solid var(--accent); background: color-mix(in srgb, var(--accent) 12%, transparent);
+    color: var(--text); font-size: .85rem; font-family: ui-monospace, Menlo, monospace;
+  }
+  /* charts */
+  .chart-wrap { position: relative; }
+  .chart-wrap + .chart-title { margin-top: 18px; }
+  .chart-title { font-size: .9rem; font-weight: 600; margin: 0 0 2px; }
+  .chart-sub { font-size: .78rem; color: var(--muted); margin: 0 0 6px; }
+  .chart { display: block; width: 100%; height: 150px; overflow: visible; }
+  .chart text { fill: var(--muted); font-size: 10px; font-variant-numeric: tabular-nums; }
+  .chart .grid-line { stroke: var(--border); stroke-width: 1; }
+  .chart .hover-band { fill: var(--text); opacity: 0; }
+  .chart .hit:hover + .hover-band, .chart .hover-band.on { opacity: .06; }
+  .tooltip {
+    position: absolute; pointer-events: none; background: var(--card); color: var(--text);
+    border: 1px solid var(--border); border-radius: 8px; padding: 6px 9px; font-size: .78rem;
+    box-shadow: var(--shadow); white-space: nowrap; transform: translate(-50%, -100%); z-index: 2;
+  }
+  .tooltip b { display: block; }
+  .history-table { width: 100%; border-collapse: collapse; font-size: .85rem; margin-top: 10px; }
+  .history-table th, .history-table td { text-align: right; padding: 5px 8px; border-bottom: 1px solid var(--border); font-variant-numeric: tabular-nums; }
+  .history-table th:first-child, .history-table td:first-child { text-align: left; }
+  details.inline > summary { cursor: pointer; color: var(--muted); font-size: .85rem; margin-top: 12px; }
   .cell b { font-size: 1.3rem; font-family: ui-monospace, Menlo, monospace; }
   .cell .name { display: block; font-size: .8rem; color: color-mix(in srgb, var(--text) 70%, transparent); }
   .cell small { display: block; margin-top: 4px; font-variant-numeric: tabular-nums; font-size: .78rem; }
@@ -216,6 +250,7 @@
   <section class="mode" id="mode-speak">
     <div class="card">
       <div class="meta"><span id="sCounter"></span><span id="sSession"></span></div>
+      <button class="focus-pill" hidden></button>
       <div class="word" id="sWord">—</div>
       <div class="chips" id="sReveal"></div>
       <div class="tip" id="sTip"></div>
@@ -267,6 +302,7 @@
   <section class="mode" id="mode-dictate">
     <div class="card">
       <div class="meta"><span id="dProgress">Grab a pen and paper.</span><span class="live" id="dLive">Screen stays on</span></div>
+      <button class="focus-pill" hidden></button>
       <div class="status" id="dStatus">Ready</div>
       <div class="typing" id="dTyping" hidden></div>
       <div class="controls">
@@ -364,7 +400,18 @@
       </div>
     </div>
     <div class="card">
-      <h2>Per-letter accuracy</h2>
+      <h2>Last 30 days</h2>
+      <div id="pHistory"></div>
+    </div>
+    <div class="card">
+      <div class="card-head">
+        <h2>Per-letter accuracy</h2>
+        <div style="display:flex;gap:6px">
+          <button class="btn sm" id="pFocusWeak">🎯 Weakest 5</button>
+          <button class="btn sm" id="pFocusClear">Clear focus</button>
+        </div>
+      </div>
+      <p class="muted small" style="margin:-4px 0 12px" id="pFocusHint"></p>
       <div class="grid" id="pGrid"></div>
       <div class="actions"><button class="btn stop" id="pReset">Reset progress</button></div>
     </div>
@@ -508,7 +555,7 @@ const DEFAULTS = {
   mode: 'speak', theme: 'auto', adaptive: true,
   sSource: 'random', sFormat: 'mixed', sLen: 5, sLenMax: 5, sTimer: 0, sDigits: false,
   dSource: 'random', dFormat: 'mixed', dLen: 5, dLenMax: 5, dCount: 5, dGap: 1.5, dRate: 0.9, dPause: 4,
-  dStatic: 0, dVoice: '', dDigits: false, dAnnounce: true, dLadder: false, radioDigits: false, dAnswer: 'paper',
+  dStatic: 0, dVoice: '', dDigits: false, dAnnounce: true, dLadder: false, radioDigits: false, dAnswer: 'paper', focus: [],
 };
 const settings = { ...DEFAULTS, ...JSON.parse(localStorage.getItem('nato-settings') || '{}') };
 const save = () => localStorage.setItem('nato-settings', JSON.stringify(settings));
@@ -518,14 +565,21 @@ const save = () => localStorage.setItem('nato-settings', JSON.stringify(settings
 let stats = JSON.parse(localStorage.getItem('nato-stats') || '{}');
 const saveStats = () => localStorage.setItem('nato-stats', JSON.stringify(stats));
 
+// history['YYYY-MM-DD'] = { n, wrong } — letters scored per local day
+let history = JSON.parse(localStorage.getItem('nato-history') || '{}');
+const saveHistory = () => localStorage.setItem('nato-history', JSON.stringify(history));
+const dayKey = d => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+
 function record(str, wrongIdx) {
+  const day = history[dayKey(new Date())] ??= { n: 0, wrong: 0 };
   [...str].forEach((c, i) => {
     if (!isScored(c)) return;
     const s = stats[c] ??= { seen: 0, wrong: 0 };
-    s.seen++;
-    if (wrongIdx.has(i)) s.wrong++;
+    s.seen++; day.n++;
+    if (wrongIdx.has(i)) { s.wrong++; day.wrong++; }
   });
   saveStats();
+  saveHistory();
 }
 
 // Unseen letters get a mild boost; frequently-missed letters a strong one.
@@ -546,16 +600,26 @@ function pick(chars) {
 // ================= Generation =================
 const randLen = (min, max) => min + rand(max - min + 1);
 
+// Focus letters narrow a character pool; if none of them fit, the full pool is used.
+function focusPool(chars) {
+  const f = [...chars].filter(c => settings.focus.includes(c)).join('');
+  return f || chars;
+}
+
 function pickWord(len, maxLen = len) {
   // Prefer words in [len, maxLen]; otherwise the closest available length.
   let pool = WORDS.filter(w => w.length >= len && w.length <= maxLen);
   for (let d = 1; !pool.length && d < 12; d++) pool = WORDS.filter(w => Math.abs(w.length - len) === d);
+  // With focus letters, prefer words that contain at least one of them.
+  const focused = pool.filter(w => [...w].some(c => settings.focus.includes(c)));
+  if (focused.length) pool = focused;
   if (!settings.adaptive) return pool[rand(pool.length)];
   return weightedChoice(pool, w => { const m = [...w].reduce((a, c) => a + weight(c), 0) / w.length; return m * m; });
 }
 
 function fillPattern(p) {
-  return [...p].map(ch => ch === 'l' ? pick(LETTERS) : ch === 'd' ? pick(DIGITS) : ch === 'a' ? pick(LETTERS + DIGITS) : ch).join('');
+  return [...p].map(ch => ch === 'l' ? pick(focusPool(LETTERS)) : ch === 'd' ? pick(focusPool(DIGITS))
+    : ch === 'a' ? pick(focusPool(LETTERS + DIGITS)) : ch).join('');
 }
 
 function makeFormat(name) {
@@ -578,7 +642,9 @@ function generate(p) {
   if (src === 'formats') return makeFormat(settings[p + 'Format']);
   const len = randLen(settings[p + 'Len'], settings[p + 'LenMax']);
   if (src === 'words') return pickWord(len);
-  const chars = LETTERS + (settings[p + 'Digits'] ? DIGITS : '');
+  // Focus letters override the digits checkbox if they're all digits.
+  const all = LETTERS + (settings[p + 'Digits'] ? DIGITS : '');
+  const chars = settings.focus.length ? (focusPool(all) !== all ? focusPool(all) : settings.focus.join('')) : all;
   let s = '';
   for (let i = 0; i < len; i++) s += pick(chars);
   return s;
@@ -1204,29 +1270,176 @@ $('dSaveBtn').addEventListener('click', saveResults);
 
 // ================= Progress =================
 function renderProgress() {
+  renderHistory();
+  renderGrid();
+}
+function streaks() {
+  const has = d => history[dayKey(d)]?.n > 0;
+  const d = new Date();
+  if (!has(d)) d.setDate(d.getDate() - 1); // today not practised yet: streak still alive
+  let current = 0;
+  while (has(d)) { current++; d.setDate(d.getDate() - 1); }
+  let best = 0, run = 0, prev = null;
+  for (const k of Object.keys(history).filter(k => history[k].n > 0).sort()) {
+    const [y, m, dd] = k.split('-').map(Number), t = new Date(y, m - 1, dd);
+    run = prev && Math.round((t - prev) / 864e5) === 1 ? run + 1 : 1;
+    best = Math.max(best, run); prev = t;
+  }
+  return { current, best };
+}
+function renderGrid() {
   const chars = [...LETTERS, ...DIGITS];
   const seen = chars.reduce((a, c) => a + (stats[c]?.seen || 0), 0);
   const wrong = chars.reduce((a, c) => a + (stats[c]?.wrong || 0), 0);
   const weakest = chars.filter(c => stats[c]?.seen >= 3 && stats[c].wrong)
     .sort((a, b) => stats[b].wrong / stats[b].seen - stats[a].wrong / stats[a].seen).slice(0, 4);
+  const st = streaks();
   $('pStats').innerHTML = `
-    <div class="stat"><b>${seen}</b><span>letters scored</span></div>
+    <div class="stat"><b>${seen.toLocaleString()}</b><span>letters scored</span></div>
     <div class="stat"><b>${seen ? Math.round(100 * (1 - wrong / seen)) + '%' : '–'}</b><span>accuracy</span></div>
+    <div class="stat"><b>${st.current ? '🔥 ' + st.current : '–'}</b><span>day streak${st.best > st.current ? ` · best ${st.best}` : ''}</span></div>
     <div class="stat"><b>${weakest.join(' ') || '–'}</b><span>weakest</span></div>`;
+  const focus = settings.focus;
+  $('pFocusHint').textContent = focus.length
+    ? `🎯 Focused on ${focus.join(' ')}: practice uses only these. Tap letters to change.`
+    : 'Tap letters to focus practice on them.';
+  $('pFocusClear').disabled = !focus.length;
   $('pGrid').innerHTML = chars.map(c => {
-    const s = stats[c];
-    if (!s?.seen) return `<div class="cell unseen"><b>${c}</b><span class="name">${nato(c).display}</span><small>not yet</small></div>`;
+    const s = stats[c], f = focus.includes(c) ? ' focused' : '';
+    const label = `aria-pressed="${!!f}" data-c="${c}"`;
+    if (!s?.seen) return `<button class="cell unseen${f}" ${label}><b>${c}</b><span class="name">${nato(c).display}</span><small>not yet</small></button>`;
     const r = s.wrong / s.seen;
     const bg = r === 0
       ? 'color-mix(in srgb, var(--good) 18%, var(--card2))'
       : `color-mix(in srgb, var(--bad) ${Math.round(Math.min(45, 12 + r * 80))}%, var(--card2))`;
-    return `<div class="cell" style="background:${bg}"><b>${c}</b><span class="name">${nato(c).display}</span>
-      <small>${Math.round(100 * (1 - r))}% · ${s.seen}×</small></div>`;
+    return `<button class="cell${f}" ${label} style="background:${bg}"><b>${c}</b><span class="name">${nato(c).display}</span>
+      <small>${Math.round(100 * (1 - r))}% · ${s.seen}×</small></button>`;
   }).join('');
 }
+
+// ---------- Focus letters ----------
+function setFocus(chars) {
+  settings.focus = [...LETTERS, ...DIGITS].filter(c => chars.includes(c)); save();
+  updateFocusUI();
+  renderGrid();
+}
+function updateFocusUI() {
+  document.querySelectorAll('.focus-pill').forEach(el => {
+    el.hidden = !settings.focus.length;
+    el.textContent = `🎯 Focus: ${settings.focus.join(' ')}`;
+    el.title = 'Change focus letters';
+  });
+}
+document.querySelectorAll('.focus-pill').forEach(el => el.addEventListener('click', () => setMode('progress')));
+$('pGrid').addEventListener('click', e => {
+  const c = e.target.closest('.cell')?.dataset.c;
+  if (c) setFocus(settings.focus.includes(c) ? settings.focus.filter(x => x !== c) : [...settings.focus, c]);
+});
+$('pFocusClear').addEventListener('click', () => setFocus([]));
+$('pFocusWeak').addEventListener('click', () => {
+  // Letters actually missed first (highest error rate), then the least-practised letters.
+  const missed = [...LETTERS].filter(c => stats[c]?.wrong)
+    .sort((a, b) => stats[b].wrong / stats[b].seen - stats[a].wrong / stats[a].seen);
+  const rest = [...LETTERS].filter(c => !missed.includes(c)).sort((a, b) => (stats[a]?.seen || 0) - (stats[b]?.seen || 0));
+  setFocus([...missed, ...rest].slice(0, 5));
+});
+updateFocusUI();
+
+// ---------- History charts ----------
+function last30() {
+  return Array.from({ length: 30 }, (_, i) => {
+    const d = new Date(); d.setHours(12, 0, 0, 0); d.setDate(d.getDate() - 29 + i);
+    const h = history[dayKey(d)] || { n: 0, wrong: 0 };
+    return { date: d, n: h.n, acc: h.n ? 1 - h.wrong / h.n : null };
+  });
+}
+const fmtDay = d => d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+const fmtDayLong = d => d.toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' });
+function niceMax(v) {
+  if (v <= 10) return 10;
+  const p = 10 ** Math.floor(Math.log10(v)), m = v / p;
+  return [1, 1.5, 2, 2.5, 3, 4, 5, 6, 8, 10].find(step => m <= step) * p;
+}
+
+// Shared frame: x slots per day, hairline gridlines at ticks, sparse date labels,
+// and a full-height hit target per day that drives the tooltip.
+function chartFrame(el, days, ticks, yOf, tickLabel, marks, tip) {
+  const W = Math.max(280, el.clientWidth), H = 150, L = 34, R = 8, T = 10, B = 22;
+  const slot = (W - L - R) / days.length;
+  const x = i => L + slot * i + slot / 2;
+  const y = v => T + (H - T - B) * (1 - yOf(v));
+  let svg = `<svg class="chart" viewBox="0 0 ${W} ${H}" role="img">`;
+  for (const t of ticks) svg += `<line class="grid-line" x1="${L}" x2="${W - R}" y1="${y(t)}" y2="${y(t)}"/><text x="${L - 6}" y="${y(t) + 3}" text-anchor="end">${tickLabel(t)}</text>`;
+  [0, 7, 14, 21, 29].forEach(i => svg += `<text x="${x(i)}" y="${H - 6}" text-anchor="middle">${i === 29 ? 'Today' : fmtDay(days[i].date)}</text>`);
+  svg += marks({ x, y, slot, base: y(ticks[0]) });
+  days.forEach((d, i) => svg += `<rect class="hit" data-i="${i}" x="${L + slot * i}" y="${T}" width="${slot}" height="${H - T - B}" fill="transparent"/><rect class="hover-band" x="${L + slot * i}" y="${T}" width="${slot}" height="${H - T - B}" pointer-events="none"/>`);
+  el.innerHTML = svg + '</svg>';
+  const tipEl = document.createElement('div');
+  tipEl.className = 'tooltip'; tipEl.hidden = true;
+  el.append(tipEl);
+  const show = e => {
+    const hit = e.target.closest('.hit');
+    el.querySelectorAll('.hover-band.on').forEach(b => b.classList.remove('on'));
+    if (!hit) return (tipEl.hidden = true);
+    const i = +hit.dataset.i;
+    hit.nextElementSibling.classList.add('on');
+    tipEl.innerHTML = tip(days[i]);
+    tipEl.hidden = false;
+    const scale = el.clientWidth / W;
+    tipEl.style.left = Math.min(Math.max(x(i) * scale, 70), el.clientWidth - 70) + 'px';
+    tipEl.style.top = T * scale + 'px';
+  };
+  el.onpointermove = el.onpointerdown = show;
+  el.onpointerleave = () => { tipEl.hidden = true; el.querySelectorAll('.hover-band.on').forEach(b => b.classList.remove('on')); };
+}
+const dayTip = d => `<b>${fmtDayLong(d.date)}</b>${d.n ? `${d.n} letters · ${Math.round(d.acc * 100)}% accuracy` : 'No practice'}`;
+
+function renderHistory() {
+  const days = last30();
+  if (!days.some(d => d.n)) {
+    $('pHistory').innerHTML = '<p class="muted small" style="margin:0">Your daily history appears here once you mark answers (Speak: reveal, then Next; Dictation: Save results).</p>';
+    return;
+  }
+  $('pHistory').innerHTML = `
+    <p class="chart-title">Letters practised</p><p class="chart-sub">per day</p>
+    <div class="chart-wrap" id="pVolume"></div>
+    <p class="chart-title">Accuracy</p><p class="chart-sub">share of letters right, on days you practised</p>
+    <div class="chart-wrap" id="pAccuracy"></div>
+    <details class="inline"><summary>Show as table</summary>
+      <table class="history-table"><thead><tr><th>Day</th><th>Letters</th><th>Accuracy</th></tr></thead><tbody>
+      ${days.filter(d => d.n).reverse().map(d => `<tr><td>${fmtDayLong(d.date)}</td><td>${d.n}</td><td>${Math.round(d.acc * 100)}%</td></tr>`).join('')}
+      </tbody></table></details>`;
+
+  // Columns: <=24px, 4px rounded data-end, square at the baseline, 2px gap between neighbours.
+  const max = niceMax(Math.max(...days.map(d => d.n)));
+  chartFrame($('pVolume'), days, [0, max / 2, max], v => v / max, t => t.toLocaleString(), ({ x, y, slot, base }) =>
+    days.map((d, i) => {
+      if (!d.n) return '';
+      const w = Math.min(24, slot - 2), x0 = x(i) - w / 2, top = y(d.n), r = Math.min(4, w / 2, base - top);
+      return `<path fill="var(--chart)" d="M${x0},${base} V${top + r} Q${x0},${top} ${x0 + r},${top} H${x0 + w - r} Q${x0 + w},${top} ${x0 + w},${top + r} V${base} Z"/>`;
+    }).join(''), dayTip);
+
+  // Line: 2px, broken across days without practice; 8px markers with a 2px surface ring.
+  const accs = days.filter(d => d.n).map(d => d.acc);
+  const lo = Math.max(0, Math.floor((Math.min(...accs) * 100 - 5) / 10) * 10) / 100;
+  chartFrame($('pAccuracy'), days, [lo, (lo + 1) / 2, 1], v => (v - lo) / (1 - lo), t => Math.round(t * 100) + '%', ({ x, y }) => {
+    let path = '', pen = false;
+    days.forEach((d, i) => {
+      if (d.acc === null) { pen = false; return; }
+      path += `${pen ? 'L' : 'M'}${x(i)},${y(d.acc)} `; pen = true;
+    });
+    return `<path d="${path}" fill="none" stroke="var(--chart)" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>` +
+      days.map((d, i) => d.acc === null ? '' : `<circle cx="${x(i)}" cy="${y(d.acc)}" r="4" fill="var(--chart)" stroke="var(--card)" stroke-width="2"/>`).join('');
+  }, dayTip);
+}
+let resizeTimer;
+window.addEventListener('resize', () => {
+  clearTimeout(resizeTimer);
+  resizeTimer = setTimeout(() => settings.mode === 'progress' && renderHistory(), 150);
+});
 $('pReset').addEventListener('click', () => {
-  if (!confirm('Reset all progress? This clears per-letter accuracy.')) return;
-  stats = {}; saveStats(); sessionLetters = sessionMisses = 0; renderProgress();
+  if (!confirm('Reset all progress? This clears per-letter accuracy and your daily history.')) return;
+  stats = {}; saveStats(); history = {}; saveHistory(); sessionLetters = sessionMisses = 0; renderProgress();
 });
 
 // ================= Keyboard =================
