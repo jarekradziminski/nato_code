@@ -1,214 +1,358 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-theme="auto">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>NATO Alphabet Trainer</title>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" type="image/png" href="icons/icon-192.png">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="NATO Trainer">
+<meta name="theme-color" content="#f1f5f9" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0b1120" media="(prefers-color-scheme: dark)">
+<script>
+  // Apply the saved theme before first paint to avoid a flash.
+  try { document.documentElement.dataset.theme = JSON.parse(localStorage.getItem('nato-settings') || '{}').theme || 'auto'; } catch {}
+</script>
 <style>
   :root {
-    --bg: #0f172a; --panel: #1e293b; --panel2: #273449; --text: #e2e8f0;
-    --muted: #94a3b8; --accent: #38bdf8; --accent2: #22c55e; --danger: #f87171;
-    --radius: 12px;
+    --bg: #f1f5f9; --card: #ffffff; --card2: #f1f5f9; --border: #e2e8f0;
+    --text: #0f172a; --muted: #64748b; --accent: #0284c7; --accent-ink: #ffffff;
+    --good: #16a34a; --bad: #dc2626; --warn-bg: #fef3c7; --warn-ink: #92400e;
+    --shadow: 0 1px 2px rgb(15 23 42 / .06), 0 4px 16px rgb(15 23 42 / .06);
+    --radius: 16px;
+    color-scheme: light;
+  }
+  :root[data-theme=dark] {
+    --bg: #0b1120; --card: #131c2e; --card2: #1c2740; --border: #24314b;
+    --text: #e2e8f0; --muted: #8b9ab3; --accent: #38bdf8; --accent-ink: #04121c;
+    --good: #22c55e; --bad: #f87171; --warn-bg: #3b2a0b; --warn-ink: #fcd34d;
+    --shadow: 0 1px 2px rgb(0 0 0 / .3), 0 8px 24px rgb(0 0 0 / .25);
+    color-scheme: dark;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root[data-theme=auto] {
+      --bg: #0b1120; --card: #131c2e; --card2: #1c2740; --border: #24314b;
+      --text: #e2e8f0; --muted: #8b9ab3; --accent: #38bdf8; --accent-ink: #04121c;
+      --good: #22c55e; --bad: #f87171; --warn-bg: #3b2a0b; --warn-ink: #fcd34d;
+      --shadow: 0 1px 2px rgb(0 0 0 / .3), 0 8px 24px rgb(0 0 0 / .25);
+      color-scheme: dark;
+    }
   }
   * { box-sizing: border-box; }
+  html { -webkit-text-size-adjust: 100%; }
   body {
-    margin: 0; font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+    margin: 0; font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
     background: var(--bg); color: var(--text); min-height: 100vh;
+    padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+    -webkit-tap-highlight-color: transparent;
   }
-  header { padding: 20px; text-align: center; }
-  header h1 { margin: 0 0 14px; font-size: 1.5rem; letter-spacing: .02em; }
-  .tabs { display: inline-flex; background: var(--panel); border-radius: 999px; padding: 4px; }
+  button { font: inherit; }
+  [hidden] { display: none !important; }
+
+  /* ---------- Header ---------- */
+  header { max-width: 760px; margin: 0 auto; padding: 18px 16px 8px; }
+  .topbar { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; }
+  .brand { display: flex; align-items: center; gap: 10px; font-weight: 700; font-size: 1.15rem; }
+  .brand img { width: 32px; height: 32px; border-radius: 8px; border: 1px solid var(--border); }
+  .icon-btn {
+    border: 1px solid var(--border); background: var(--card); color: var(--text);
+    width: 40px; height: 40px; border-radius: 12px; cursor: pointer; font-size: 1.1rem;
+    display: inline-grid; place-items: center;
+  }
+  .tabs { display: flex; background: var(--card); border: 1px solid var(--border); border-radius: 14px; padding: 4px; gap: 4px; }
   .tabs button {
-    border: 0; background: transparent; color: var(--muted); padding: 10px 20px;
-    border-radius: 999px; font-size: 1rem; cursor: pointer;
+    flex: 1; border: 0; background: transparent; color: var(--muted); padding: 10px 8px;
+    border-radius: 10px; cursor: pointer; font-weight: 500;
   }
-  .tabs button.active { background: var(--accent); color: #0b1220; font-weight: 600; }
-  main { max-width: 900px; margin: 0 auto; padding: 0 16px 40px; }
+  .tabs button.active { background: var(--accent); color: var(--accent-ink); font-weight: 600; }
+
+  main { max-width: 760px; margin: 0 auto; padding: 8px 16px 40px; }
   section.mode { display: none; }
   section.mode.active { display: block; }
-  .panel { background: var(--panel); border-radius: var(--radius); padding: 18px; margin-bottom: 16px; }
-  .settings { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 14px 22px; }
-  .field label { display: flex; justify-content: space-between; font-size: .9rem; color: var(--muted); margin-bottom: 6px; }
-  .field label output { color: var(--text); font-variant-numeric: tabular-nums; }
+  .card {
+    background: var(--card); border: 1px solid var(--border); border-radius: var(--radius);
+    padding: 18px; margin-bottom: 14px; box-shadow: var(--shadow);
+  }
+  .muted { color: var(--muted); }
+  .small { font-size: .85rem; }
+
+  /* ---------- Settings ---------- */
+  details.card > summary {
+    cursor: pointer; font-weight: 600; list-style: none; display: flex; justify-content: space-between; align-items: center;
+  }
+  details.card > summary::-webkit-details-marker { display: none; }
+  details.card > summary::after { content: '▾'; color: var(--muted); transition: transform .2s; }
+  details.card:not([open]) > summary::after { transform: rotate(-90deg); }
+  .settings { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 16px 22px; margin-top: 16px; }
+  .field.full { grid-column: 1 / -1; }
+  .field > label { display: flex; justify-content: space-between; font-size: .85rem; color: var(--muted); margin-bottom: 6px; }
+  .field > label output { color: var(--text); font-weight: 600; font-variant-numeric: tabular-nums; }
   input[type=range] { width: 100%; accent-color: var(--accent); }
-  select { width: 100%; padding: 8px; border-radius: 8px; background: var(--panel2); color: var(--text); border: 1px solid #334155; }
-  .seg { display: flex; gap: 6px; }
+  select {
+    width: 100%; padding: 9px 10px; border-radius: 10px; background: var(--card2); color: var(--text);
+    border: 1px solid var(--border); font: inherit;
+  }
+  .seg { display: flex; gap: 4px; background: var(--card2); padding: 4px; border-radius: 12px; }
   .seg button {
-    flex: 1; padding: 8px; border-radius: 8px; border: 1px solid #334155;
-    background: var(--panel2); color: var(--muted); cursor: pointer;
+    flex: 1; padding: 8px 6px; border-radius: 9px; border: 0; background: transparent; color: var(--muted); cursor: pointer;
   }
-  .seg button.active { border-color: var(--accent); color: var(--text); background: #12384d; }
-  .check { display: flex; align-items: center; gap: 8px; font-size: .95rem; cursor: pointer; }
-  .check input { width: 18px; height: 18px; accent-color: var(--accent); }
-  .actions { display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; margin-top: 16px; }
+  .seg button.active { background: var(--card); color: var(--text); font-weight: 600; box-shadow: 0 1px 3px rgb(0 0 0 / .15); }
+  .checks { display: flex; flex-direction: column; justify-content: flex-end; gap: 10px; }
+  .check { display: flex; align-items: center; gap: 10px; cursor: pointer; }
+  .field > label.check { justify-content: flex-start; color: var(--text); font-size: .95rem; margin: 0; }
+  .check input { width: 18px; height: 18px; flex-shrink: 0; accent-color: var(--accent); }
+
+  /* ---------- Buttons ---------- */
+  .actions { display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; margin-top: 18px; }
   .btn {
-    border: 0; border-radius: 10px; padding: 12px 22px; font-size: 1rem; cursor: pointer;
-    background: var(--panel2); color: var(--text);
+    border: 1px solid var(--border); border-radius: 12px; padding: 12px 20px; cursor: pointer;
+    background: var(--card2); color: var(--text); font-weight: 500; min-height: 46px;
   }
-  .btn.primary { background: var(--accent); color: #0b1220; font-weight: 600; }
-  .btn.go { background: var(--accent2); color: #06210f; font-weight: 600; }
-  .btn.stop { background: var(--danger); color: #2a0606; font-weight: 600; }
+  .btn.primary { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); font-weight: 600; }
+  .btn.stop { background: transparent; border-color: var(--bad); color: var(--bad); }
   .btn:disabled { opacity: .4; cursor: not-allowed; }
-  kbd { background: var(--panel2); border: 1px solid #334155; border-radius: 4px; padding: 1px 6px; font-size: .8rem; }
-  .hint { text-align: center; color: var(--muted); font-size: .85rem; margin-top: 10px; }
+  .btn.big { padding: 14px 32px; font-size: 1.1rem; }
+  kbd { background: var(--card2); border: 1px solid var(--border); border-radius: 5px; padding: 1px 6px; font-size: .78rem; font-family: inherit; }
+  .hint { text-align: center; color: var(--muted); font-size: .8rem; margin-top: 12px; }
+  @media (hover: none) { .kbd-only { display: none; } }
 
-  /* Speak mode */
+  /* ---------- Stage (speak mode) ---------- */
+  .meta { display: flex; justify-content: space-between; gap: 10px; color: var(--muted); font-size: .85rem; }
   .word {
-    font-size: clamp(2.5rem, 10vw, 5rem); font-weight: 700; letter-spacing: .15em;
-    text-align: center; padding: 30px 0 10px; font-family: ui-monospace, Menlo, monospace;
-    word-break: break-all;
+    font-size: clamp(2rem, 9vw, 4.2rem); font-weight: 700; letter-spacing: .14em;
+    text-align: center; padding: 28px 0 18px; font-family: ui-monospace, "SF Mono", Menlo, monospace;
+    word-break: break-all; line-height: 1.15;
   }
-  .reveal { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; min-height: 52px; }
-  .chip { background: var(--panel2); border-radius: 8px; padding: 8px 12px; font-size: 1.05rem; }
-  .chip b { color: var(--accent); }
-  .timerbar { height: 4px; background: var(--panel2); border-radius: 2px; overflow: hidden; margin-top: 14px; }
+  .chips { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; min-height: 48px; }
+  .chip {
+    background: var(--card2); border: 1px solid var(--border); border-radius: 10px; padding: 7px 11px;
+    color: var(--text); cursor: pointer; display: inline-flex; gap: 6px; align-items: baseline;
+    transition: background .15s, border-color .15s;
+  }
+  .chip b { color: var(--accent); font-family: ui-monospace, Menlo, monospace; }
+  .chip.wrong { background: color-mix(in srgb, var(--bad) 18%, var(--card)); border-color: var(--bad); text-decoration: line-through; text-decoration-color: var(--bad); }
+  .chip.wrong b { color: var(--bad); }
+  .locked .chip { cursor: default; }
+  .chips .gap { width: 14px; }
+  .tip { text-align: center; color: var(--muted); font-size: .82rem; min-height: 1.2em; margin-top: 10px; }
+  .timerbar { height: 4px; background: var(--card2); border-radius: 2px; overflow: hidden; margin-top: 14px; }
   .timerbar div { height: 100%; width: 0; background: var(--accent); }
-  .counter { text-align: center; color: var(--muted); font-size: .9rem; }
 
-  /* Dictation mode */
-  .status { text-align: center; font-size: 1.2rem; min-height: 1.6em; margin: 6px 0; }
-  .progress { text-align: center; color: var(--muted); font-variant-numeric: tabular-nums; }
-  .answers { display: grid; gap: 10px; }
-  .answer { background: var(--panel2); border-radius: 10px; padding: 10px 14px; }
-  .answer .top { display: flex; gap: 12px; align-items: baseline; }
-  .answer .num { color: var(--muted); width: 2.2em; }
-  .answer .str { font-family: ui-monospace, Menlo, monospace; font-size: 1.4rem; font-weight: 700; letter-spacing: .12em; }
-  .answer .nato { color: var(--muted); font-size: .9rem; margin-left: 3.2em; }
-  .answer .replay { margin-left: auto; padding: 4px 10px; font-size: .85rem; }
-  .warn { background: #3b2a0b; color: #fcd34d; padding: 10px 14px; border-radius: 10px; margin-bottom: 16px; display: none; }
+  /* ---------- Dictation ---------- */
+  .status {
+    text-align: center; font-size: 1.35rem; font-weight: 600; min-height: 2.4em; margin: 14px 0 4px;
+    display: grid; place-items: center;
+  }
+  .status.dots { font-size: 1.6rem; font-weight: 400; letter-spacing: .2em; font-family: ui-monospace, Menlo, monospace; }
+  .controls { display: grid; grid-template-columns: 1.4fr 1fr 1fr; gap: 10px; margin-top: 18px; }
+  .controls .btn { padding: 12px 8px; }
+  .live { display: inline-flex; align-items: center; gap: 6px; font-size: .78rem; color: var(--muted); }
+  .live::before { content: ''; width: 8px; height: 8px; border-radius: 50%; background: var(--muted); }
+  .live.on::before { background: var(--good); box-shadow: 0 0 0 3px color-mix(in srgb, var(--good) 25%, transparent); }
+  .answers { display: grid; gap: 12px; }
+  .answer { background: var(--card2); border-radius: 12px; padding: 12px 14px; }
+  .answer-head { display: flex; gap: 12px; align-items: center; margin-bottom: 10px; }
+  .answer .num { color: var(--muted); min-width: 1.6em; }
+  .answer .str { font-family: ui-monospace, Menlo, monospace; font-size: 1.3rem; font-weight: 700; letter-spacing: .1em; word-break: break-all; }
+  .answer .icon-btn { margin-left: auto; width: 36px; height: 36px; flex-shrink: 0; }
+  .answer .chips { justify-content: flex-start; min-height: 0; }
+  .answer .chip { background: var(--card); }
+  .result { text-align: center; margin-top: 14px; font-weight: 500; min-height: 1.2em; }
+  .warn { background: var(--warn-bg); color: var(--warn-ink); padding: 10px 14px; border-radius: 12px; margin-bottom: 14px; display: none; }
 
-  /* Reference */
-  details summary { cursor: pointer; color: var(--muted); }
-  .ref { display: grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: 6px; margin-top: 12px; }
-  .ref div { background: var(--panel2); padding: 6px 10px; border-radius: 6px; font-size: .9rem; }
-  .ref b { color: var(--accent); display: inline-block; width: 1.3em; }
+  /* ---------- Progress ---------- */
+  .stat-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+  .stat { background: var(--card2); border-radius: 12px; padding: 12px; text-align: center; }
+  .stat b { display: block; font-size: 1.4rem; }
+  .stat span { color: var(--muted); font-size: .8rem; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(96px, 1fr)); gap: 8px; }
+  .cell { border-radius: 12px; padding: 10px; background: var(--card2); border: 1px solid var(--border); }
+  .cell b { font-size: 1.3rem; font-family: ui-monospace, Menlo, monospace; }
+  .cell .name { display: block; font-size: .8rem; color: color-mix(in srgb, var(--text) 70%, transparent); }
+  .cell small { display: block; margin-top: 4px; font-variant-numeric: tabular-nums; font-size: .78rem; }
+  .cell.unseen { opacity: .55; }
+  h2 { font-size: 1rem; margin: 0 0 12px; }
+
+  /* ---------- Reference ---------- */
+  .ref { display: grid; grid-template-columns: repeat(auto-fill, minmax(118px, 1fr)); gap: 6px; margin-top: 14px; }
+  .ref div { background: var(--card2); padding: 7px 10px; border-radius: 8px; font-size: .9rem; }
+  .ref b { color: var(--accent); display: inline-block; width: 1.4em; font-family: ui-monospace, Menlo, monospace; }
 </style>
 </head>
 <body>
 <header>
-  <h1>NATO Alphabet Trainer</h1>
-  <div class="tabs" role="tablist">
-    <button class="active" data-mode="speak">🗣️ Speak</button>
-    <button data-mode="dictate">🎧 Dictation</button>
+  <div class="topbar">
+    <div class="brand"><img src="icons/icon-192.png" alt=""> NATO Trainer</div>
+    <button class="icon-btn" id="themeBtn" aria-label="Toggle theme"></button>
   </div>
+  <nav class="tabs">
+    <button data-mode="speak">🗣️ Speak</button>
+    <button data-mode="dictate">🎧 Dictation</button>
+    <button data-mode="progress">📊 Progress</button>
+  </nav>
 </header>
 
 <main>
-  <div class="warn" id="ttsWarn">Your browser doesn't support speech synthesis. Dictation mode needs a recent version of Chrome, Edge, Safari or Firefox.</div>
+  <div class="warn" id="ttsWarn">Your browser doesn't support speech synthesis, so audio won't play. Try a recent Chrome, Edge, Safari or Firefox.</div>
 
-  <!-- ============ SPEAK MODE ============ -->
-  <section class="mode active" id="mode-speak">
-    <div class="panel settings">
-      <div class="field">
-        <label>Source</label>
-        <div class="seg" data-setting="sSource">
-          <button data-value="random">Random letters</button>
-          <button data-value="words">Real words</button>
-        </div>
-      </div>
-      <div class="field">
-        <label>Min length <output id="sLenOut"></output></label>
-        <input type="range" id="sLen" min="2" max="12" step="1">
-      </div>
-      <div class="field">
-        <label>Max length <output id="sLenMaxOut"></output></label>
-        <input type="range" id="sLenMax" min="2" max="12" step="1">
-      </div>
-      <div class="field">
-        <label>Auto-reveal after <output id="sTimerOut"></output></label>
-        <input type="range" id="sTimer" min="0" max="20" step="1">
-      </div>
-      <div class="field" style="display:flex;flex-direction:column;justify-content:flex-end;gap:8px">
-        <label class="check"><input type="checkbox" id="sDigits"> Include digits 0–9</label>
-      </div>
-    </div>
-
-    <div class="panel">
-      <div class="counter" id="sCounter"></div>
+  <!-- ================= SPEAK ================= -->
+  <section class="mode" id="mode-speak">
+    <div class="card">
+      <div class="meta"><span id="sCounter"></span><span id="sSession"></span></div>
       <div class="word" id="sWord">—</div>
-      <div class="reveal" id="sReveal"></div>
+      <div class="chips" id="sReveal"></div>
+      <div class="tip" id="sTip"></div>
       <div class="timerbar"><div id="sTimerBar"></div></div>
       <div class="actions">
         <button class="btn primary" id="sRevealBtn">Reveal</button>
-        <button class="btn" id="sHearBtn">🔊 Hear it</button>
-        <button class="btn go" id="sNextBtn">Next →</button>
+        <button class="btn" id="sHearBtn">🔊 Hear</button>
+        <button class="btn" id="sNextBtn">Next →</button>
       </div>
-      <div class="hint"><kbd>Space</kbd> reveal · <kbd>Enter</kbd> / <kbd>→</kbd> next · <kbd>H</kbd> hear</div>
+      <div class="hint kbd-only"><kbd>Space</kbd> reveal · <kbd>Enter</kbd> next · <kbd>H</kbd> hear</div>
     </div>
-  </section>
 
-  <!-- ============ DICTATION MODE ============ -->
-  <section class="mode" id="mode-dictate">
-    <div class="panel settings">
-      <div class="field">
-        <label>Source</label>
-        <div class="seg" data-setting="dSource">
-          <button data-value="random">Random letters</button>
-          <button data-value="words">Real words</button>
+    <details class="card" open>
+      <summary>⚙️ Settings</summary>
+      <div class="settings">
+        <div class="field full">
+          <label>Source</label>
+          <div class="seg" data-setting="sSource">
+            <button data-value="random">Random</button>
+            <button data-value="words">Words</button>
+            <button data-value="formats">Formats</button>
+          </div>
+        </div>
+        <div class="field full" data-when="formats">
+          <label>Format</label>
+          <select id="sFormat"></select>
+        </div>
+        <div class="field" data-when="random words">
+          <label>Min length <output id="sLenOut"></output></label>
+          <input type="range" id="sLen" min="2" max="12" step="1">
+        </div>
+        <div class="field" data-when="random words">
+          <label>Max length <output id="sLenMaxOut"></output></label>
+          <input type="range" id="sLenMax" min="2" max="12" step="1">
+        </div>
+        <div class="field">
+          <label>Auto-reveal after <output id="sTimerOut"></output></label>
+          <input type="range" id="sTimer" min="0" max="20" step="1">
+        </div>
+        <div class="field checks" data-when="random">
+          <label class="check"><input type="checkbox" id="sDigits"> Include digits 0–9</label>
         </div>
       </div>
-      <div class="field">
-        <label>Min length <output id="dLenOut"></output></label>
-        <input type="range" id="dLen" min="2" max="12" step="1">
-      </div>
-      <div class="field">
-        <label>Max length <output id="dLenMaxOut"></output></label>
-        <input type="range" id="dLenMax" min="2" max="12" step="1">
-      </div>
-      <div class="field">
-        <label>Number of strings <output id="dCountOut"></output></label>
-        <input type="range" id="dCount" min="1" max="20" step="1">
-      </div>
-      <div class="field">
-        <label>Gap between letters <output id="dGapOut"></output></label>
-        <input type="range" id="dGap" min="0.2" max="6" step="0.1">
-      </div>
-      <div class="field">
-        <label>Speaking rate <output id="dRateOut"></output></label>
-        <input type="range" id="dRate" min="0.5" max="1.8" step="0.05">
-      </div>
-      <div class="field">
-        <label>Pause between strings <output id="dPauseOut"></output></label>
-        <input type="range" id="dPause" min="1" max="15" step="0.5">
-      </div>
-      <div class="field">
-        <label>Voice</label>
-        <select id="dVoice"></select>
-      </div>
-      <div class="field" style="display:flex;flex-direction:column;justify-content:flex-end;gap:8px">
-        <label class="check"><input type="checkbox" id="dDigits"> Include digits 0–9</label>
-        <label class="check"><input type="checkbox" id="dAnnounce"> Announce string number</label>
-      </div>
-    </div>
+    </details>
+  </section>
 
-    <div class="panel">
-      <div class="progress" id="dProgress">Grab a pen and paper, then press Start.</div>
-      <div class="status" id="dStatus"></div>
-      <div class="actions">
-        <button class="btn go" id="dStartBtn">▶ Start</button>
+  <!-- ================= DICTATION ================= -->
+  <section class="mode" id="mode-dictate">
+    <div class="card">
+      <div class="meta"><span id="dProgress">Grab a pen and paper.</span><span class="live" id="dLive">Screen stays on</span></div>
+      <div class="status" id="dStatus">Ready</div>
+      <div class="controls">
+        <button class="btn primary" id="dStartBtn">▶ Start</button>
         <button class="btn" id="dPauseBtn" disabled>⏸ Pause</button>
         <button class="btn stop" id="dStopBtn" disabled>■ Stop</button>
-        <button class="btn" id="dReplayBtn" disabled>↻ Replay same set</button>
-        <button class="btn primary" id="dRevealBtn" disabled>Show answers</button>
       </div>
-      <div class="hint"><kbd>S</kbd> start · <kbd>P</kbd> pause/resume · <kbd>Esc</kbd> stop · <kbd>A</kbd> show answers</div>
+      <div class="actions" style="margin-top:10px">
+        <button class="btn" id="dReplayBtn" disabled>↻ Replay set</button>
+        <button class="btn" id="dRevealBtn" disabled>Show answers</button>
+      </div>
+      <div class="hint kbd-only"><kbd>S</kbd> start · <kbd>P</kbd> pause · <kbd>Esc</kbd> stop · <kbd>A</kbd> answers</div>
     </div>
 
-    <div class="panel" id="dAnswersPanel" style="display:none">
+    <div class="card" id="dAnswersCard" hidden>
+      <h2>Answers</h2>
+      <p class="muted small" style="margin-top:-6px">Tap every letter you got wrong, then save. Progress tracking and the speed ladder use this.</p>
       <div class="answers" id="dAnswers"></div>
+      <div class="actions"><button class="btn primary" id="dSaveBtn">✓ Save results</button></div>
+      <div class="result" id="dResult"></div>
+    </div>
+
+    <details class="card" open>
+      <summary>⚙️ Settings</summary>
+      <div class="settings">
+        <div class="field full">
+          <label>Source</label>
+          <div class="seg" data-setting="dSource">
+            <button data-value="random">Random</button>
+            <button data-value="words">Words</button>
+            <button data-value="formats">Formats</button>
+          </div>
+        </div>
+        <div class="field full" data-when="formats">
+          <label>Format</label>
+          <select id="dFormat"></select>
+        </div>
+        <div class="field" data-when="random words">
+          <label>Min length <output id="dLenOut"></output></label>
+          <input type="range" id="dLen" min="2" max="12" step="1">
+        </div>
+        <div class="field" data-when="random words">
+          <label>Max length <output id="dLenMaxOut"></output></label>
+          <input type="range" id="dLenMax" min="2" max="12" step="1">
+        </div>
+        <div class="field">
+          <label>Number of strings <output id="dCountOut"></output></label>
+          <input type="range" id="dCount" min="1" max="20" step="1">
+        </div>
+        <div class="field">
+          <label>Gap between letters <output id="dGapOut"></output></label>
+          <input type="range" id="dGap" min="0.2" max="6" step="0.1">
+        </div>
+        <div class="field">
+          <label>Speaking rate <output id="dRateOut"></output></label>
+          <input type="range" id="dRate" min="0.5" max="1.8" step="0.05">
+        </div>
+        <div class="field">
+          <label>Pause between strings <output id="dPauseOut"></output></label>
+          <input type="range" id="dPause" min="1" max="15" step="0.5">
+        </div>
+        <div class="field">
+          <label>Radio static <output id="dStaticOut"></output></label>
+          <input type="range" id="dStatic" min="0" max="100" step="5">
+        </div>
+        <div class="field">
+          <label>Voice</label>
+          <select id="dVoice"></select>
+        </div>
+        <div class="field checks full">
+          <label class="check" data-when="random"><input type="checkbox" id="dDigits"> Include digits 0–9</label>
+          <label class="check"><input type="checkbox" id="dAnnounce"> Announce string number ("Group 1…")</label>
+          <label class="check"><input type="checkbox" id="dLadder"> Speed ladder: shorten the gap after perfect strings, lengthen it after misses</label>
+        </div>
+      </div>
+    </details>
+  </section>
+
+  <!-- ================= PROGRESS ================= -->
+  <section class="mode" id="mode-progress">
+    <div class="card">
+      <div class="stat-row" id="pStats"></div>
+      <div style="margin-top:16px">
+        <label class="check"><input type="checkbox" id="adaptive"> Practise weak letters more often</label>
+        <p class="muted small" style="margin:8px 0 0">Letters you miss more often come up more often in every mode. To record misses, tap the letters you got wrong after revealing the answers.</p>
+      </div>
+    </div>
+    <div class="card">
+      <h2>Per-letter accuracy</h2>
+      <div class="grid" id="pGrid"></div>
+      <div class="actions"><button class="btn stop" id="pReset">Reset progress</button></div>
     </div>
   </section>
 
-  <div class="panel">
-    <details>
-      <summary>NATO alphabet reference</summary>
-      <div class="ref" id="ref"></div>
-    </details>
-  </div>
+  <details class="card">
+    <summary>📖 NATO alphabet reference</summary>
+    <div class="ref" id="ref"></div>
+  </details>
 </main>
 
 <script>
-// ---------- Data ----------
+// ================= Data =================
 // `display` is the official ICAO spelling; `say` is tuned so TTS engines pronounce it naturally.
 const NATO = {
   A:{display:'Alfa',say:'Alpha'}, B:{display:'Bravo',say:'Bravo'}, C:{display:'Charlie',say:'Charlie'},
@@ -224,6 +368,7 @@ const NATO = {
   3:{display:'Three',say:'Three'}, 4:{display:'Four',say:'Four'}, 5:{display:'Five',say:'Five'},
   6:{display:'Six',say:'Six'}, 7:{display:'Seven',say:'Seven'}, 8:{display:'Eight',say:'Eight'},
   9:{display:'Niner',say:'Niner'},
+  '@':{display:'At',say:'at'}, '.':{display:'Dot',say:'dot'}, '-':{display:'Dash',say:'dash'},
 };
 const LETTERS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
 const DIGITS = '0123456789';
@@ -311,96 +456,195 @@ snowboarding spokesperson storytellers strawberries subscription thunderstorm tr
 unbelievable undercurrent watercolours
 `.trim().split(/\s+/).map(w => w.toUpperCase());
 
-// ---------- Helpers ----------
+// Pattern placeholders: l = letter, d = digit, a = letter or digit; anything else is literal.
+const FORMATS = {
+  mixed:    { label: 'Mixed: a random format each time' },
+  callsign: { label: 'Callsign (G-ABCD, N123AB, W1ABC)', patterns: ['G-llll', 'D-llll', 'Ndddll', 'Nddl', 'ldlll', 'lldll'] },
+  plate:    { label: 'Licence plate (AB12 CDE)', patterns: ['lldd lll'] },
+  postcode: { label: 'Postcode (SW1A 2AA)', patterns: ['ldd dll', 'lld dll', 'lldd dll', 'ldl dll', 'lldl dll'] },
+  booking:  { label: 'Booking reference (X7K2PQ)', patterns: ['aaaaaa'] },
+  serial:   { label: 'Serial number (ABC-1234-XY)', patterns: ['lll-dddd-ll', 'll-dddddd'] },
+  email:    { label: 'Email address (river42@maple.com)' },
+};
+
+// ================= Helpers =================
 const $ = id => document.getElementById(id);
 const rand = n => Math.floor(Math.random() * n);
 const sleep = ms => new Promise(r => setTimeout(r, ms));
+const isScored = c => /[A-Z0-9]/.test(c);
 
-function generate(len, source, digits) {
-  if (source === 'words') {
-    // Pick a word with the exact length, or the closest available length.
-    let pool = WORDS.filter(w => w.length === len);
-    for (let d = 1; !pool.length && d < 12; d++) {
-      pool = WORDS.filter(w => Math.abs(w.length - len) === d);
-    }
-    return pool[rand(pool.length)];
-  }
-  const chars = LETTERS + (digits ? DIGITS : '');
-  let s = '';
-  for (let i = 0; i < len; i++) s += chars[rand(chars.length)];
-  return s;
-}
-
-const natoDisplay = s => [...s].map(c => NATO[c].display);
-
-// ---------- Settings (persisted) ----------
+// ================= Settings (persisted) =================
 const DEFAULTS = {
-  sSource: 'random', sLen: 5, sLenMax: 5, sTimer: 0, sDigits: false,
-  dSource: 'random', dLen: 5, dLenMax: 5, dCount: 5, dGap: 1.5, dRate: 0.9, dPause: 4,
-  dVoice: '', dDigits: false, dAnnounce: true, mode: 'speak',
+  mode: 'speak', theme: 'auto', adaptive: true,
+  sSource: 'random', sFormat: 'mixed', sLen: 5, sLenMax: 5, sTimer: 0, sDigits: false,
+  dSource: 'random', dFormat: 'mixed', dLen: 5, dLenMax: 5, dCount: 5, dGap: 1.5, dRate: 0.9, dPause: 4,
+  dStatic: 0, dVoice: '', dDigits: false, dAnnounce: true, dLadder: false,
 };
 const settings = { ...DEFAULTS, ...JSON.parse(localStorage.getItem('nato-settings') || '{}') };
 const save = () => localStorage.setItem('nato-settings', JSON.stringify(settings));
 
+// ================= Progress stats =================
+// stats[char] = { seen, wrong }
+let stats = JSON.parse(localStorage.getItem('nato-stats') || '{}');
+const saveStats = () => localStorage.setItem('nato-stats', JSON.stringify(stats));
+
+function record(str, wrongIdx) {
+  [...str].forEach((c, i) => {
+    if (!isScored(c)) return;
+    const s = stats[c] ??= { seen: 0, wrong: 0 };
+    s.seen++;
+    if (wrongIdx.has(i)) s.wrong++;
+  });
+  saveStats();
+}
+
+// Unseen letters get a mild boost; frequently-missed letters a strong one.
+function weight(c) {
+  const s = stats[c] || { seen: 0, wrong: 0 };
+  return 1 + 8 * (s.wrong + 0.2) / (s.seen + 2);
+}
+function weightedChoice(items, w) {
+  const ws = items.map(w);
+  let r = Math.random() * ws.reduce((a, b) => a + b, 0);
+  for (let i = 0; i < items.length; i++) if ((r -= ws[i]) < 0) return items[i];
+  return items[items.length - 1];
+}
+function pick(chars) {
+  return settings.adaptive ? weightedChoice([...chars], weight) : chars[rand(chars.length)];
+}
+
+// ================= Generation =================
+const randLen = (min, max) => min + rand(max - min + 1);
+
+function pickWord(len, maxLen = len) {
+  // Prefer words in [len, maxLen]; otherwise the closest available length.
+  let pool = WORDS.filter(w => w.length >= len && w.length <= maxLen);
+  for (let d = 1; !pool.length && d < 12; d++) pool = WORDS.filter(w => Math.abs(w.length - len) === d);
+  if (!settings.adaptive) return pool[rand(pool.length)];
+  return weightedChoice(pool, w => { const m = [...w].reduce((a, c) => a + weight(c), 0) / w.length; return m * m; });
+}
+
+function fillPattern(p) {
+  return [...p].map(ch => ch === 'l' ? pick(LETTERS) : ch === 'd' ? pick(DIGITS) : ch === 'a' ? pick(LETTERS + DIGITS) : ch).join('');
+}
+
+function makeFormat(name) {
+  if (name === 'mixed') {
+    const keys = Object.keys(FORMATS).filter(k => k !== 'mixed');
+    name = keys[rand(keys.length)];
+  }
+  if (name === 'email') {
+    const local = pickWord(3, 7) + (Math.random() < .5 ? fillPattern('dd') : '');
+    const domain = pickWord(4, 8);
+    const tld = ['COM', 'ORG', 'NET', 'IO'][rand(4)];
+    return `${local}@${domain}.${tld}`;
+  }
+  const ps = FORMATS[name].patterns;
+  return fillPattern(ps[rand(ps.length)]);
+}
+
+function generate(p) {
+  const src = settings[p + 'Source'];
+  if (src === 'formats') return makeFormat(settings[p + 'Format']);
+  const len = randLen(settings[p + 'Len'], settings[p + 'LenMax']);
+  if (src === 'words') return pickWord(len);
+  const chars = LETTERS + (settings[p + 'Digits'] ? DIGITS : '');
+  let s = '';
+  for (let i = 0; i < len; i++) s += pick(chars);
+  return s;
+}
+
+// Tappable NATO chips; `row` identifies which string they belong to.
+function chipsHTML(s, row) {
+  return [...s].map((c, i) => c === ' '
+    ? '<span class="gap"></span>'
+    : `<button class="chip" data-row="${row}" data-i="${i}"><b>${c}</b>${NATO[c].display}</button>`).join('');
+}
+const wrongIndices = container => new Set([...container.querySelectorAll('.chip.wrong')].map(el => +el.dataset.i));
+
+// ================= Settings UI =================
 const fmt = {
   sLen: v => v, sLenMax: v => v, dLen: v => v, dLenMax: v => v, dCount: v => v,
   sTimer: v => +v === 0 ? 'off' : v + ' s',
   dGap: v => (+v).toFixed(1) + ' s',
   dPause: v => (+v).toFixed(1) + ' s',
   dRate: v => (+v).toFixed(2) + '×',
+  dStatic: v => +v === 0 ? 'off' : v + '%',
 };
-for (const id of Object.keys(fmt)) {
-  const el = $(id), out = $(id + 'Out');
-  el.value = settings[id];
-  out.textContent = fmt[id](el.value);
-  el.addEventListener('input', () => {
-    settings[id] = +el.value; out.textContent = fmt[id](el.value); save();
-  });
+function setRange(id, v) {
+  settings[id] = +v; $(id).value = v; $(id + 'Out').textContent = fmt[id](v);
 }
-for (const id of ['sDigits', 'dDigits', 'dAnnounce']) {
+for (const id of Object.keys(fmt)) {
+  setRange(id, settings[id]);
+  $(id).addEventListener('input', () => { setRange(id, $(id).value); save(); });
+}
+// Keep min <= max: dragging one past the other pushes the other along.
+function linkRange(minId, maxId) {
+  $(minId).addEventListener('input', () => { if (settings[minId] > settings[maxId]) setRange(maxId, settings[minId]); save(); });
+  $(maxId).addEventListener('input', () => { if (settings[maxId] < settings[minId]) setRange(minId, settings[maxId]); save(); });
+}
+linkRange('sLen', 'sLenMax');
+linkRange('dLen', 'dLenMax');
+
+for (const id of ['sDigits', 'dDigits', 'dAnnounce', 'dLadder', 'adaptive']) {
   $(id).checked = settings[id];
-  $(id).addEventListener('change', () => { settings[id] = $(id).checked; save(); syncDigitToggles(); });
+  $(id).addEventListener('change', () => { settings[id] = $(id).checked; save(); });
+}
+
+const formatOptions = Object.entries(FORMATS).map(([k, f]) => `<option value="${k}">${f.label}</option>`).join('');
+for (const id of ['sFormat', 'dFormat']) {
+  $(id).innerHTML = formatOptions;
+  $(id).value = FORMATS[settings[id]] ? settings[id] : 'mixed';
+  $(id).addEventListener('change', () => { settings[id] = $(id).value; save(); if (id === 'sFormat') nextWord(); });
+}
+
+// Show only the settings relevant to the chosen source.
+function syncSourceFields() {
+  for (const p of ['s', 'd']) {
+    const src = settings[p + 'Source'];
+    const section = $(p === 's' ? 'mode-speak' : 'mode-dictate');
+    section.querySelectorAll('[data-when]').forEach(el => { el.hidden = !el.dataset.when.split(' ').includes(src); });
+  }
 }
 document.querySelectorAll('.seg').forEach(seg => {
   const key = seg.dataset.setting;
-  const render = () => seg.querySelectorAll('button').forEach(b =>
-    b.classList.toggle('active', b.dataset.value === settings[key]));
+  const render = () => seg.querySelectorAll('button').forEach(b => b.classList.toggle('active', b.dataset.value === settings[key]));
   seg.addEventListener('click', e => {
-    if (!e.target.dataset.value) return;
-    settings[key] = e.target.dataset.value; save(); render(); syncDigitToggles();
+    const v = e.target.closest('button')?.dataset.value;
+    if (!v) return;
+    settings[key] = v; save(); render(); syncSourceFields();
     if (key === 'sSource') nextWord();
   });
   render();
 });
-// Digits only make sense for random strings.
-function syncDigitToggles() {
-  $('sDigits').disabled = settings.sSource === 'words';
-  $('dDigits').disabled = settings.dSource === 'words';
-}
-syncDigitToggles();
-// Keep min <= max: dragging one past the other pushes the other along.
-function linkRange(minId, maxId) {
-  const set = (id, v) => { settings[id] = v; $(id).value = v; $(id + 'Out').textContent = v; };
-  $(minId).addEventListener('input', () => { if (settings[minId] > settings[maxId]) set(maxId, settings[minId]); save(); });
-  $(maxId).addEventListener('input', () => { if (settings[maxId] < settings[minId]) set(minId, settings[maxId]); save(); });
-}
-linkRange('sLen', 'sLenMax');
-linkRange('dLen', 'dLenMax');
-const randLen = (min, max) => min + rand(max - min + 1);
-$('sLen').addEventListener('change', nextWord);
-$('sLenMax').addEventListener('change', nextWord);
-$('sDigits').addEventListener('change', nextWord);
+syncSourceFields();
+for (const id of ['sLen', 'sLenMax', 'sDigits']) $(id).addEventListener('change', nextWord);
 
-// ---------- Tabs ----------
+// ================= Theme =================
+const THEME_ICON = { auto: '🌓', light: '☀️', dark: '🌙' };
+function applyTheme() {
+  document.documentElement.dataset.theme = settings.theme;
+  $('themeBtn').textContent = THEME_ICON[settings.theme];
+  $('themeBtn').title = `Theme: ${settings.theme} (click to change)`;
+}
+$('themeBtn').addEventListener('click', () => {
+  const order = ['auto', 'light', 'dark'];
+  settings.theme = order[(order.indexOf(settings.theme) + 1) % order.length];
+  save(); applyTheme();
+});
+applyTheme();
+
+// ================= Tabs =================
 function setMode(mode) {
   settings.mode = mode; save();
   document.querySelectorAll('.tabs button').forEach(b => b.classList.toggle('active', b.dataset.mode === mode));
   document.querySelectorAll('section.mode').forEach(s => s.classList.toggle('active', s.id === 'mode-' + mode));
   if (mode !== 'dictate') stopDictation();
+  if (mode === 'progress') renderProgress();
 }
 document.querySelectorAll('.tabs button').forEach(b => b.addEventListener('click', () => setMode(b.dataset.mode)));
 
-// ---------- Speech ----------
+// ================= Speech =================
 const tts = window.speechSynthesis;
 if (!tts) $('ttsWarn').style.display = 'block';
 let voices = [];
@@ -443,16 +687,95 @@ function speak(text) {
   });
 }
 
-// ---------- Speak mode ----------
-let sCurrent = '', sCount = 0, sRevealed = false, sTimerId = null, sTimerStart = 0;
+// Speak a string letter by letter (used for "Hear" and answer replay).
+async function speakString(s, gapMs) {
+  unlockSpeech();
+  tts?.cancel();
+  for (const c of s) {
+    if (c === ' ') { await sleep(gapMs); continue; }
+    await speak(NATO[c].say);
+    await sleep(gapMs);
+  }
+}
+
+// ================= Radio static (Web Audio) =================
+// Speech synthesis can't be routed through Web Audio, so the static plays alongside it.
+let audioCtx = null, noiseGain = null;
+function ensureAudio() {
+  const AC = window.AudioContext || window.webkitAudioContext;
+  if (!AC) return;
+  if (!audioCtx) {
+    audioCtx = new AC();
+    const len = audioCtx.sampleRate * 4;
+    const buf = audioCtx.createBuffer(1, len, audioCtx.sampleRate);
+    const d = buf.getChannelData(0);
+    let env = 0.6;
+    for (let i = 0; i < len; i++) {
+      if (i % 480 === 0) env = Math.min(1, Math.max(0.3, env + (Math.random() - 0.5) * 0.3)); // slow fading
+      let v = (Math.random() * 2 - 1) * env;
+      if (Math.random() < 0.0004) v += (Math.random() < .5 ? -1.5 : 1.5); // crackle
+      d[i] = v;
+    }
+    const src = audioCtx.createBufferSource();
+    src.buffer = buf; src.loop = true;
+    const band = audioCtx.createBiquadFilter();
+    band.type = 'bandpass'; band.frequency.value = 1800; band.Q.value = 0.6;
+    noiseGain = audioCtx.createGain();
+    noiseGain.gain.value = 0;
+    src.connect(band).connect(noiseGain).connect(audioCtx.destination);
+    src.start();
+  }
+  if (audioCtx.state === 'suspended') audioCtx.resume();
+}
+function setStatic(on) {
+  if (!noiseGain) return;
+  noiseGain.gain.setTargetAtTime(on ? settings.dStatic / 100 * 0.5 : 0, audioCtx.currentTime, 0.08);
+}
+$('dStatic').addEventListener('input', () => {
+  if (dRunning && settings.dStatic > 0) ensureAudio();
+  setStatic(dRunning && !dPaused);
+});
+
+// ================= Wake lock =================
+let wakeLock = null;
+async function keepAwake(on) {
+  try {
+    if (on && 'wakeLock' in navigator && !wakeLock) {
+      wakeLock = await navigator.wakeLock.request('screen');
+      wakeLock.addEventListener('release', () => { wakeLock = null; $('dLive').classList.remove('on'); });
+      $('dLive').classList.add('on');
+    } else if (!on && wakeLock) {
+      await wakeLock.release();
+    }
+  } catch { /* not supported or denied: nothing to do */ }
+}
+// The lock is dropped when the page is hidden; take it again on return.
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'visible' && dRunning) keepAwake(true);
+});
+if (!('wakeLock' in navigator)) $('dLive').hidden = true;
+
+// ================= Speak mode =================
+let sCurrent = '', sCount = 0, sRevealed = false, sTimerId = null;
+let sessionLetters = 0, sessionMisses = 0;
 
 function nextWord() {
-  sCurrent = generate(randLen(settings.sLen, settings.sLenMax), settings.sSource, settings.sDigits);
+  // Record the previous word if it was revealed (and possibly marked).
+  if (sRevealed && sCurrent) {
+    const wrong = wrongIndices($('sReveal'));
+    record(sCurrent, wrong);
+    sessionLetters += [...sCurrent].filter(isScored).length;
+    sessionMisses += wrong.size;
+  }
+  sCurrent = generate('s');
   sCount++;
   sRevealed = false;
   $('sWord').textContent = sCurrent;
   $('sReveal').innerHTML = '';
-  $('sCounter').textContent = `Word #${sCount}`;
+  $('sTip').textContent = '';
+  $('sCounter').textContent = `#${sCount}`;
+  $('sSession').textContent = sessionLetters
+    ? `Session: ${Math.round(100 * (1 - sessionMisses / sessionLetters))}% of ${sessionLetters} letters` : '';
   $('sRevealBtn').disabled = false;
   startSpeakTimer();
 }
@@ -460,16 +783,17 @@ function revealWord() {
   if (sRevealed) return;
   sRevealed = true;
   stopSpeakTimer();
-  $('sReveal').innerHTML = [...sCurrent].map(c => `<span class="chip"><b>${c}</b> ${NATO[c].display}</span>`).join('');
+  $('sReveal').innerHTML = chipsHTML(sCurrent, 's');
+  $('sTip').textContent = 'Tap any letter you got wrong';
   $('sRevealBtn').disabled = true;
 }
 function startSpeakTimer() {
   stopSpeakTimer();
   const secs = settings.sTimer;
   if (!secs) return;
-  sTimerStart = performance.now();
+  const start = performance.now();
   const tick = () => {
-    const p = (performance.now() - sTimerStart) / (secs * 1000);
+    const p = (performance.now() - start) / (secs * 1000);
     $('sTimerBar').style.width = Math.min(p, 1) * 100 + '%';
     if (p >= 1) return revealWord();
     sTimerId = requestAnimationFrame(tick);
@@ -480,19 +804,16 @@ function stopSpeakTimer() {
   cancelAnimationFrame(sTimerId);
   $('sTimerBar').style.width = '0';
 }
-async function hearWord() {
-  unlockSpeech();
-  revealWord();
-  tts?.cancel();
-  for (const c of sCurrent) { await speak(NATO[c].say); await sleep(250); }
-}
+function hearWord() { revealWord(); speakString(sCurrent, 250); }
+
 $('sRevealBtn').addEventListener('click', revealWord);
 $('sNextBtn').addEventListener('click', nextWord);
 $('sHearBtn').addEventListener('click', hearWord);
 $('sTimer').addEventListener('change', startSpeakTimer);
+$('sReveal').addEventListener('click', e => e.target.closest('.chip')?.classList.toggle('wrong'));
 
-// ---------- Dictation mode ----------
-let dSet = [], dRunId = 0, dPaused = false, dRunning = false, dStatusBeforePause = '';
+// ================= Dictation mode =================
+let dSet = [], dRunId = 0, dPaused = false, dRunning = false, dStatusBeforePause = ['', false], dSaved = false;
 
 async function waitWhilePaused(runId) {
   while (dPaused && runId === dRunId) await sleep(100);
@@ -506,21 +827,31 @@ async function dSleep(ms, runId) {
     await sleep(Math.min(100, end - performance.now()));
   }
 }
+function setStatus(text, isDots = false) {
+  $('dStatus').textContent = text;
+  $('dStatus').classList.toggle('dots', isDots);
+}
+const dots = (s, j) => [...s].map((c, i) => c === ' ' ? ' ' : i <= j ? '●' : '○').join('');
 
 async function runDictation(set) {
+  // Everything before the first await runs inside the tap, which iOS requires for audio.
   unlockSpeech();
+  if (settings.dStatic > 0) ensureAudio();
+  keepAwake(true);
   const runId = ++dRunId;
-  dSet = set; dRunning = true; dPaused = false;
+  dSet = set; dRunning = true; dPaused = false; dSaved = false;
   updateDictButtons();
-  $('dAnswersPanel').style.display = 'none';
-  $('dStatus').textContent = 'Get ready…';
+  $('dAnswersCard').hidden = true;
+  $('dAnswers').dataset.set = ''; // force a fresh, unmarked answer list
+  setStatus('Get ready…');
+  setStatic(true);
   await dSleep(1200, runId);
 
   for (let i = 0; i < set.length; i++) {
     if (runId !== dRunId) return;
     $('dProgress').textContent = `String ${i + 1} of ${set.length}`;
     if (settings.dAnnounce) {
-      $('dStatus').textContent = `Group ${i + 1}`;
+      setStatus(`Group ${i + 1}`);
       await speak(`Group ${i + 1}`);
       await dSleep(800, runId);
     }
@@ -528,58 +859,93 @@ async function runDictation(set) {
     for (let j = 0; j < s.length; j++) {
       if (runId !== dRunId) return;
       await waitWhilePaused(runId);
-      $('dStatus').textContent = '●'.repeat(j + 1) + '○'.repeat(s.length - j - 1);
+      if (s[j] === ' ') { await dSleep(settings.dGap * 1000, runId); continue; }
+      setStatus(dots(s, j), true);
       await speak(NATO[s[j]].say);
       if (j < s.length - 1) await dSleep(settings.dGap * 1000, runId);
     }
     if (i < set.length - 1) {
-      $('dStatus').textContent = '…';
+      setStatus('…');
       await dSleep(settings.dPause * 1000, runId);
     }
   }
   if (runId !== dRunId) return;
-  dRunning = false;
-  $('dStatus').textContent = 'Done! Check your answers.';
+  finishDictation('Done! Check your answers.');
   $('dProgress').textContent = `${set.length} string${set.length > 1 ? 's' : ''} dictated`;
+}
+function finishDictation(msg) {
+  dRunning = false; dPaused = false;
+  setStatic(false);
+  keepAwake(false);
+  setStatus(msg);
   updateDictButtons();
 }
 
 function startDictation() {
-  const set = Array.from({ length: settings.dCount }, () => generate(randLen(settings.dLen, settings.dLenMax), settings.dSource, settings.dDigits));
-  runDictation(set);
+  runDictation(Array.from({ length: settings.dCount }, () => generate('d')));
 }
 function stopDictation() {
   if (!dRunning) return;
-  dRunId++; dRunning = false; dPaused = false;
+  dRunId++;
   tts?.cancel();
-  $('dStatus').textContent = 'Stopped.';
-  updateDictButtons();
+  finishDictation('Stopped');
 }
 function togglePause() {
   if (!dRunning) return;
   dPaused = !dPaused;
+  setStatic(!dPaused);
   $('dPauseBtn').textContent = dPaused ? '▶ Resume' : '⏸ Pause';
-  if (dPaused) { dStatusBeforePause = $('dStatus').textContent; $('dStatus').textContent = 'Paused'; }
-  else $('dStatus').textContent = dStatusBeforePause;
+  if (dPaused) { dStatusBeforePause = [$('dStatus').textContent, $('dStatus').classList.contains('dots')]; setStatus('Paused'); }
+  else setStatus(...dStatusBeforePause);
 }
 function showAnswers() {
   if (!dSet.length) return;
-  $('dAnswersPanel').style.display = 'block';
-  $('dAnswers').innerHTML = dSet.map((s, i) => `
-    <div class="answer">
-      <div class="top"><span class="num">${i + 1}.</span><span class="str">${s}</span>
-        <button class="btn replay" data-i="${i}">🔊</button></div>
-      <div class="nato">${natoDisplay(s).join(' · ')}</div>
-    </div>`).join('');
-  $('dAnswersPanel').scrollIntoView({ behavior: 'smooth' });
+  $('dAnswersCard').hidden = false;
+  // Keep existing marks if the same set's answers were already shown.
+  if ($('dAnswers').dataset.set !== dSet.join('|')) {
+    $('dAnswers').dataset.set = dSet.join('|');
+    $('dAnswers').innerHTML = dSet.map((s, i) => `
+      <div class="answer" data-row="${i}">
+        <div class="answer-head"><span class="num">${i + 1}.</span><span class="str">${s}</span>
+          <button class="icon-btn" data-play="${i}" aria-label="Play">🔊</button></div>
+        <div class="chips">${chipsHTML(s, i)}</div>
+      </div>`).join('');
+    $('dResult').textContent = '';
+  }
+  $('dAnswers').classList.toggle('locked', dSaved);
+  $('dSaveBtn').disabled = dSaved;
+  $('dAnswersCard').scrollIntoView({ behavior: 'smooth', block: 'start' });
 }
-$('dAnswers').addEventListener('click', async e => {
-  const i = e.target.dataset.i;
-  if (i === undefined || dRunning) return;
-  unlockSpeech();
-  tts?.cancel();
-  for (const c of dSet[i]) { await speak(NATO[c].say); await sleep(settings.dGap * 1000); }
+$('dAnswers').addEventListener('click', e => {
+  const play = e.target.closest('[data-play]');
+  if (play) { if (!dRunning) speakString(dSet[play.dataset.play], settings.dGap * 1000); return; }
+  if (!dSaved) e.target.closest('.chip')?.classList.toggle('wrong');
 });
+function saveResults() {
+  if (dSaved) return;
+  dSaved = true;
+  let perfect = 0, letters = 0, misses = 0;
+  let gap = settings.dGap;
+  document.querySelectorAll('#dAnswers .answer').forEach(row => {
+    const s = dSet[row.dataset.row], wrong = wrongIndices(row);
+    record(s, wrong);
+    letters += [...s].filter(isScored).length;
+    misses += wrong.size;
+    if (!wrong.size) perfect++;
+    gap *= wrong.size ? 1.15 : 0.9;
+  });
+  let msg = `${perfect}/${dSet.length} strings perfect · ${letters - misses}/${letters} letters`;
+  if (settings.dLadder) {
+    const old = settings.dGap;
+    gap = Math.round(Math.min(6, Math.max(0.2, gap)) * 10) / 10;
+    setRange('dGap', gap); save();
+    msg += gap === old ? ` · gap stays ${gap.toFixed(1)} s`
+      : ` · gap ${old.toFixed(1)} → ${gap.toFixed(1)} s ${gap < old ? '⬇️ faster' : '⬆️ slower'}`;
+  }
+  $('dResult').textContent = msg;
+  $('dAnswers').classList.add('locked');
+  $('dSaveBtn').disabled = true;
+}
 function updateDictButtons() {
   $('dStartBtn').disabled = dRunning;
   $('dPauseBtn').disabled = !dRunning;
@@ -593,16 +959,45 @@ $('dStopBtn').addEventListener('click', stopDictation);
 $('dPauseBtn').addEventListener('click', togglePause);
 $('dReplayBtn').addEventListener('click', () => runDictation(dSet));
 $('dRevealBtn').addEventListener('click', showAnswers);
+$('dSaveBtn').addEventListener('click', saveResults);
 
-// ---------- Keyboard ----------
+// ================= Progress =================
+function renderProgress() {
+  const chars = [...LETTERS, ...DIGITS];
+  const seen = chars.reduce((a, c) => a + (stats[c]?.seen || 0), 0);
+  const wrong = chars.reduce((a, c) => a + (stats[c]?.wrong || 0), 0);
+  const weakest = chars.filter(c => stats[c]?.seen >= 3 && stats[c].wrong)
+    .sort((a, b) => stats[b].wrong / stats[b].seen - stats[a].wrong / stats[a].seen).slice(0, 4);
+  $('pStats').innerHTML = `
+    <div class="stat"><b>${seen}</b><span>letters scored</span></div>
+    <div class="stat"><b>${seen ? Math.round(100 * (1 - wrong / seen)) + '%' : '–'}</b><span>accuracy</span></div>
+    <div class="stat"><b>${weakest.join(' ') || '–'}</b><span>weakest</span></div>`;
+  $('pGrid').innerHTML = chars.map(c => {
+    const s = stats[c];
+    if (!s?.seen) return `<div class="cell unseen"><b>${c}</b><span class="name">${NATO[c].display}</span><small>not yet</small></div>`;
+    const r = s.wrong / s.seen;
+    const bg = r === 0
+      ? 'color-mix(in srgb, var(--good) 18%, var(--card2))'
+      : `color-mix(in srgb, var(--bad) ${Math.round(Math.min(45, 12 + r * 80))}%, var(--card2))`;
+    return `<div class="cell" style="background:${bg}"><b>${c}</b><span class="name">${NATO[c].display}</span>
+      <small>${Math.round(100 * (1 - r))}% · ${s.seen}×</small></div>`;
+  }).join('');
+}
+$('pReset').addEventListener('click', () => {
+  if (!confirm('Reset all progress? This clears per-letter accuracy.')) return;
+  stats = {}; saveStats(); sessionLetters = sessionMisses = 0; renderProgress();
+});
+
+// ================= Keyboard =================
 document.addEventListener('keydown', e => {
+  if (e.metaKey || e.ctrlKey || e.altKey) return;
   if (e.target.matches('input, select') && e.key !== 'Escape') return;
+  const k = e.key.toLowerCase();
   if (settings.mode === 'speak') {
     if (e.key === ' ') { e.preventDefault(); revealWord(); }
     else if (e.key === 'Enter' || e.key === 'ArrowRight') { e.preventDefault(); nextWord(); }
-    else if (e.key.toLowerCase() === 'h') hearWord();
-  } else {
-    const k = e.key.toLowerCase();
+    else if (k === 'h') hearWord();
+  } else if (settings.mode === 'dictate') {
     if (k === 's' && !dRunning) startDictation();
     else if (k === 'p') togglePause();
     else if (e.key === 'Escape') stopDictation();
@@ -610,12 +1005,13 @@ document.addEventListener('keydown', e => {
   }
 });
 
-// ---------- Reference ----------
-$('ref').innerHTML = Object.entries(NATO).map(([k, v]) => `<div><b>${k}</b>${v.display}</div>`).join('');
+// ================= Reference =================
+$('ref').innerHTML = [...LETTERS, ...DIGITS].map(k => `<div><b>${k}</b>${NATO[k].display}</div>`).join('');
 
-// ---------- Init ----------
-setMode(settings.mode);
+// ================= Init =================
+setMode(['speak', 'dictate', 'progress'].includes(settings.mode) ? settings.mode : 'speak');
 nextWord();
+if ('serviceWorker' in navigator && location.protocol === 'https:') navigator.serviceWorker.register('sw.js');
 </script>
 </body>
 </html>

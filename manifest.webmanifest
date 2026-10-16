@@ -1,0 +1,14 @@
+{
+  "name": "NATO Alphabet Trainer",
+  "short_name": "NATO Trainer",
+  "description": "Practise the NATO phonetic alphabet: speaking and dictation drills.",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#0b1120",
+  "theme_color": "#0b1120",
+  "icons": [
+    { "src": "icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any maskable" },
+    { "src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable" }
+  ]
+}
